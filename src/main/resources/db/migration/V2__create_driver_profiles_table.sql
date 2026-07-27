@@ -1,8 +1,8 @@
 CREATE TABLE driver_profiles (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL UNIQUE,
-  address VARCHAR(255),
-  phone_number VARCHAR(20),
+  address VARCHAR(255) NOT NULL,
+  phone_number VARCHAR(20) NOT NULL,
   licence_number VARCHAR(50) NOT NULL,
   vehicle_plate VARCHAR(20) NOT NULL,
   created_at TIMESTAMP NOT NULL,
