@@ -1,6 +1,6 @@
 package com.hermes.delivery;
 
-import com.hermes.delivery.dto.CreateParcelRequest;
+import com.hermes.delivery.dto.CreateParcelRequestDto;
 import com.hermes.delivery.exception.ParcelNotFoundException;
 import com.hermes.security.JwtAuthFilter;
 import tools.jackson.databind.json.JsonMapper;
@@ -81,8 +81,9 @@ class ParcelControllerTest {
 
     @Test
     void createParcel_returns201_whenValid() throws Exception {
-        CreateParcelRequest request = new CreateParcelRequest();
+        CreateParcelRequestDto request = new CreateParcelRequestDto();
         request.setDeliveryId(10L);
+        request.setDescription("Fragile electronics");
         request.setLengthCm(new BigDecimal("30.00"));
         request.setWidthCm(new BigDecimal("20.00"));
         request.setHeightCm(new BigDecimal("15.00"));
@@ -90,7 +91,7 @@ class ParcelControllerTest {
         request.setDeclaredValue(new BigDecimal("100.00"));
         request.setInsured(false);
 
-        when(parcelService.createParcel(any(CreateParcelRequest.class)))
+        when(parcelService.createParcel(any(CreateParcelRequestDto.class)))
                 .thenReturn(buildParcel(1L, 10L));
 
         mockMvc.perform(post("/parcels")
@@ -102,7 +103,7 @@ class ParcelControllerTest {
 
     @Test
     void createParcel_returns400_whenWeightExceedsLimit() throws Exception {
-        CreateParcelRequest request = new CreateParcelRequest();
+        CreateParcelRequestDto request = new CreateParcelRequestDto();
         request.setDeliveryId(10L);
         request.setLengthCm(new BigDecimal("30.00"));
         request.setWidthCm(new BigDecimal("20.00"));

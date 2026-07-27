@@ -1,6 +1,6 @@
 package com.hermes.delivery;
 
-import com.hermes.delivery.dto.CreateParcelRequest;
+import com.hermes.delivery.dto.CreateParcelRequestDto;
 import com.hermes.delivery.dto.ParcelDto;
 import com.hermes.delivery.mapper.ParcelMapper;
 import jakarta.validation.Valid;
@@ -32,7 +32,7 @@ public class ParcelController {
     }
 
     @PostMapping("/parcels")
-    public ResponseEntity<ParcelDto> createParcel(@Valid @RequestBody CreateParcelRequest request) {
+    public ResponseEntity<ParcelDto> createParcel(@Valid @RequestBody CreateParcelRequestDto request) {
         Parcel created = parcelService.createParcel(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ParcelMapper.toDto(created));
     }

@@ -1,9 +1,8 @@
 package com.hermes.delivery;
 
 import com.hermes.delivery.exception.InvalidDeliveryException;
-import com.hermes.user.RecipientProfile;
-import com.hermes.user.SenderProfile;
-import com.hermes.user.User;
+import com.hermes.user.*;
+import org.apache.camel.ProducerTemplate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -29,9 +28,16 @@ class DeliveryServiceTest {
 
     private DeliveryService deliveryService;
 
+    private SenderProfileRepository senderProfileRepository;
+    private RecipientProfileRepository recipientProfileRepository;
+
+    @Mock
+    private ProducerTemplate producerTemplate;
+
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        deliveryService = new DeliveryService(deliveryRepository);
+        deliveryService = new DeliveryService(deliveryRepository, producerTemplate,
+                senderProfileRepository, recipientProfileRepository);
     }
 
     private User buildUser(Long id, String email) {

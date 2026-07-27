@@ -42,6 +42,12 @@ public class Delivery {
     @OneToMany(mappedBy = "delivery")
     private List<Parcel> parcels = new ArrayList<>();
 
+    @Column(name = "pick_up_address", nullable = false)
+    private String pickUpAddress;
+
+    @Column(name = "drop_off_address", nullable = false)
+    private String dropOffAddress;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -2,6 +2,7 @@ package com.hermes.delivery.dto;
 
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,10 +11,13 @@ import java.math.BigDecimal;
 
 @Getter
 @Setter
-public class CreateParcelRequest {
+public class CreateParcelRequestDto {
 
     @NotNull
     private Long deliveryId;
+
+    @NotBlank
+    private String description;
 
     @NotNull
     @DecimalMin(value = "0.01", message = "Length must be greater than 0")

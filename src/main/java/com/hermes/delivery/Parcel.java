@@ -29,6 +29,10 @@ public class Parcel {
     private Delivery delivery;
 
     @NotNull
+    @Column(nullable = false)
+    private String description;
+
+    @NotNull
     @DecimalMin(value = "0.01", message = "Length must be greater than 0")
     @Column(nullable = false)
     private BigDecimal lengthCm;

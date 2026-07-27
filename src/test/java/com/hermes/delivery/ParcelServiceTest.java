@@ -1,6 +1,6 @@
 package com.hermes.delivery;
 
-import com.hermes.delivery.dto.CreateParcelRequest;
+import com.hermes.delivery.dto.CreateParcelRequestDto;
 import com.hermes.delivery.exception.ParcelNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,8 +34,8 @@ class ParcelServiceTest {
         parcelService = new ParcelService(parcelRepository, deliveryRepository);
     }
 
-    private CreateParcelRequest buildValidRequest(Long deliveryId) {
-        CreateParcelRequest request = new CreateParcelRequest();
+    private CreateParcelRequestDto buildValidRequest(Long deliveryId) {
+        CreateParcelRequestDto request = new CreateParcelRequestDto();
         request.setDeliveryId(deliveryId);
         request.setLengthCm(new BigDecimal("30.00"));
         request.setWidthCm(new BigDecimal("20.00"));
@@ -80,7 +80,7 @@ class ParcelServiceTest {
     void createParcel_savesParcel_whenDeliveryExists() {
         Delivery delivery = new Delivery();
         delivery.setId(10L);
-        CreateParcelRequest request = buildValidRequest(10L);
+        CreateParcelRequestDto request = buildValidRequest(10L);
 
         when(deliveryRepository.findById(10L)).thenReturn(Optional.of(delivery));
         when(parcelRepository.save(any(Parcel.class)))
@@ -94,7 +94,7 @@ class ParcelServiceTest {
 
     @Test
     void createParcel_throwsNotFound_whenDeliveryMissing() {
-        CreateParcelRequest request = buildValidRequest(404L);
+        CreateParcelRequestDto request = buildValidRequest(404L);
         when(deliveryRepository.findById(404L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> parcelService.createParcel(request))

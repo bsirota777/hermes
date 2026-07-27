@@ -1,6 +1,6 @@
 package com.hermes.delivery;
 
-import com.hermes.delivery.dto.CreateParcelRequest;
+import com.hermes.delivery.dto.CreateParcelRequestDto;
 import com.hermes.delivery.exception.ParcelNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,7 +28,7 @@ public class ParcelService {
                 .orElseThrow(() -> new ParcelNotFoundException("Parcel not found with id: " + id));
     }
 
-    public Parcel createParcel(CreateParcelRequest request) {
+    public Parcel createParcel(CreateParcelRequestDto request) {
         Delivery delivery = deliveryRepository.findById(request.getDeliveryId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Delivery not found with id: " + request.getDeliveryId()));

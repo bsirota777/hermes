@@ -1,6 +1,7 @@
 CREATE TABLE parcels (
   id BIGSERIAL PRIMARY KEY,
   delivery_id BIGINT NOT NULL REFERENCES deliveries(id),
+  description VARCHAR(255) NOT NULL CHECK (length(description) > 0),
   length_cm NUMERIC(6,2) NOT NULL CHECK (length_cm > 0),
   width_cm NUMERIC(6,2) NOT NULL CHECK (width_cm > 0),
   height_cm NUMERIC(6,2) NOT NULL CHECK (height_cm > 0),
