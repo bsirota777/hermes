@@ -1,7 +1,7 @@
 package com.hermes.delivery;
 
 import com.hermes.delivery.dto.CreateParcelRequestDto;
-import com.hermes.delivery.dto.ParcelDto;
+import com.hermes.delivery.dto.ParcelResponseDto;
 import com.hermes.delivery.mapper.ParcelMapper;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -20,19 +20,20 @@ public class ParcelController {
     }
 
     @GetMapping("/deliveries/{deliveryId}/parcels")
-    public List<ParcelDto> getParcelsByDelivery(@PathVariable Long deliveryId) {
-        return parcelService.getParcelsByDeliveryId(deliveryId).stream()
+    public ResponseEntity<List<ParcelResponseDto>> getParcelsByDelivery(@PathVariable Long deliveryId) {
+        List<ParcelResponseDto> parcels = parcelService.getParcelsByDeliveryId(deliveryId).stream()
                 .map(ParcelMapper::toDto)
                 .toList();
+        return ResponseEntity.ok(parcels);
     }
 
     @GetMapping("/parcels/{id}")
-    public ParcelDto getParcelById(@PathVariable Long id) {
+    public ParcelResponseDto getParcelById(@PathVariable Long id) {
         return ParcelMapper.toDto(parcelService.getParcelById(id));
     }
 
     @PostMapping("/parcels")
-    public ResponseEntity<ParcelDto> createParcel(@Valid @RequestBody CreateParcelRequestDto request) {
+    public ResponseEntity<ParcelResponseDto> createParcel(@Valid @RequestBody CreateParcelRequestDto request) {
         Parcel created = parcelService.createParcel(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ParcelMapper.toDto(created));
     }

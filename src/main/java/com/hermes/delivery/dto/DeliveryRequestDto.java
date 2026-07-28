@@ -1,10 +1,13 @@
 package com.hermes.delivery.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record DeliveryRequestDto(
         @NotNull
@@ -21,5 +24,9 @@ public record DeliveryRequestDto(
 
         @NotNull
         @DecimalMin(value = "0.01")
-        BigDecimal deliveryFee
+        BigDecimal deliveryFee,
+
+        @NotEmpty
+        @Valid
+        List<ParcelDto> parcels
 ) {}

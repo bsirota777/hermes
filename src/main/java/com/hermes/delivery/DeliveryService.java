@@ -3,15 +3,16 @@ package com.hermes.delivery;
 import java.math.BigDecimal;
 
 import com.hermes.delivery.dto.DeliveryRequestDto;
+import com.hermes.delivery.dto.ParcelDto;
 import com.hermes.delivery.exception.InvalidDeliveryException;
 import com.hermes.user.*;
 import com.hermes.user.exception.RecipientProfileNotFoundException;
 import com.hermes.user.exception.SenderProfileNotFoundException;
 import com.hermes.wallet.WalletService;
 import com.hermes.wallet.WalletTransactionType;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.apache.camel.ProducerTemplate;
+import org.jspecify.annotations.NonNull;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,21 +29,22 @@ public class DeliveryService {
     private final ProducerTemplate producerTemplate;
     private final SenderProfileRepository senderProfileRepository;
     private final RecipientProfileRepository recipientProfileRepository;
+    private final ParcelRepository parcelRepository;
     private final WalletService walletService;
 
-    private static final BigDecimal DEFAULT_COMMISSION_RATE = new BigDecimal("0.80");
+    private static final BigDecimal DEFAULT_DRIVER_COMMISSION_RATE = new BigDecimal("0.80");
 
     public DeliveryService(DeliveryRepository deliveryRepository, ProducerTemplate producerTemplate,
                            SenderProfileRepository senderProfileRepository,
-                           RecipientProfileRepository recipientProfileRepository, WalletService walletService) {
+                           RecipientProfileRepository recipientProfileRepository,
+                           ParcelRepository parcelRepository, WalletService walletService) {
         this.deliveryRepository = deliveryRepository;
         this.producerTemplate = producerTemplate;
         this.senderProfileRepository = senderProfileRepository;
         this.recipientProfileRepository = recipientProfileRepository;
+        this.parcelRepository = parcelRepository;
         this.walletService = walletService;
     }
-
-    private static final BigDecimal DEFAULT_DRIVER_COMMISSION_RATE = new BigDecimal("0.80");
 
     @Transactional
     public Delivery createDeliveryRequest(DeliveryRequestDto request) {
@@ -62,10 +64,30 @@ public class DeliveryService {
         delivery.setDriverCommissionRate(DEFAULT_DRIVER_COMMISSION_RATE);
         delivery.setStatus(DeliveryStatus.CREATED);
 
-        Delivery saved = deliveryRepository.save(delivery);
-        producerTemplate.sendBody("seda:delivery-requests", saved);
+        Delivery savedDelivery = deliveryRepository.save(delivery);
 
-        return saved;
+        for (ParcelDto parcelDetails : request.parcels()) {
+            Parcel parcel = createParcel(parcelDetails, savedDelivery);
+            parcelRepository.save(parcel);
+        }
+
+        producerTemplate.sendBody("seda:delivery-requests", savedDelivery);
+
+        return savedDelivery;
+    }
+
+    private static @NonNull Parcel createParcel(ParcelDto parcelDetails, Delivery savedDelivery) {
+        Parcel parcel = new Parcel();
+        parcel.setDelivery(savedDelivery);
+        parcel.setDescription(parcelDetails.description());
+        parcel.setLengthCm(parcelDetails.lengthCm());
+        parcel.setWidthCm(parcelDetails.widthCm());
+        parcel.setHeightCm(parcelDetails.heightCm());
+        parcel.setWeightKg(parcelDetails.weightKg());
+        parcel.setDeclaredValue(parcelDetails.declaredValue());
+        parcel.setInsured(parcelDetails.insured());
+        parcel.setInsuredValue(parcelDetails.insuredValue());
+        return parcel;
     }
 
     private void validateSenderNotRecipient(SenderProfile sender, RecipientProfile recipient) {

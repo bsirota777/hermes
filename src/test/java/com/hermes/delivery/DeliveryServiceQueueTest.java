@@ -12,6 +12,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import com.hermes.delivery.dto.ParcelDto;
+import java.util.List;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -70,7 +72,20 @@ class DeliveryServiceQueueTest {
 
     @Test
     void createDeliveryRequest_savesToDbAndSendsToQueue() {
-        DeliveryRequestDto dto = new DeliveryRequestDto(senderId, recipientId, "123 Main St", "456 Oak Ave", new BigDecimal("25.00"));
+
+        DeliveryRequestDto dto = new DeliveryRequestDto(
+                senderId, recipientId, "123 Main St", "456 Oak Ave", new BigDecimal("25.00"),
+                List.of(new ParcelDto(
+                        "Test parcel",
+                        new BigDecimal("10.00"),
+                        new BigDecimal("10.00"),
+                        new BigDecimal("10.00"),
+                        new BigDecimal("2.00"),
+                        new BigDecimal("50.00"),
+                        false,
+                        null
+                ))
+        );
 
         Delivery saved = deliveryService.createDeliveryRequest(dto);
 

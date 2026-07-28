@@ -1,6 +1,7 @@
 package com.hermes.delivery;
 
 import com.hermes.delivery.dto.DeliveryRequestDto;
+import com.hermes.delivery.dto.ParcelDto;
 import com.hermes.delivery.exception.InvalidDeliveryException;
 import com.hermes.user.*;
 import com.hermes.user.exception.RecipientProfileNotFoundException;
@@ -24,6 +25,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -42,14 +44,28 @@ class DeliveryServiceTest {
     private RecipientProfileRepository recipientProfileRepository;
 
     @Mock
+    private ParcelRepository parcelRepository;
+
+    @Mock
     private ProducerTemplate producerTemplate;
 
     private DeliveryService deliveryService;
 
+    private static final List<ParcelDto> DEFAULT_PARCELS = List.of(new ParcelDto(
+            "Test parcel",
+            new BigDecimal("10.00"),
+            new BigDecimal("10.00"),
+            new BigDecimal("10.00"),
+            new BigDecimal("2.00"),
+            new BigDecimal("50.00"),
+            false,
+            null
+    ));
+
     @BeforeEach
     void setUp() {
         deliveryService = new DeliveryService(deliveryRepository, producerTemplate,
-                senderProfileRepository, recipientProfileRepository, walletService);
+                senderProfileRepository, recipientProfileRepository, parcelRepository, walletService);
     }
 
     private User buildUser(Long id, String email) {
@@ -78,7 +94,8 @@ class DeliveryServiceTest {
         RecipientProfile recipient = buildRecipient(2L, 2L, "recipient@example.com");
 
         DeliveryRequestDto request = new DeliveryRequestDto(
-                sender.getId(), recipient.getId(), "123 Pickup St", "456 Dropoff Ave", new BigDecimal("25.00"));
+                sender.getId(), recipient.getId(), "123 Pickup St", "456 Dropoff Ave",
+                new BigDecimal("25.00"), DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(sender.getId())).thenReturn(Optional.of(sender));
         when(recipientProfileRepository.findById(recipient.getId())).thenReturn(Optional.of(recipient));
@@ -94,6 +111,7 @@ class DeliveryServiceTest {
         assertThat(result.getStatus()).isEqualTo(DeliveryStatus.CREATED);
 
         verify(deliveryRepository).save(any(Delivery.class));
+        verify(parcelRepository).save(any(Parcel.class));
         verify(producerTemplate).sendBody(eq("seda:delivery-requests"), any(Delivery.class));
     }
 
@@ -103,7 +121,8 @@ class DeliveryServiceTest {
         RecipientProfile recipient = buildRecipient(2L, 1L, "same@example.com");
 
         DeliveryRequestDto request = new DeliveryRequestDto(
-                sender.getId(), recipient.getId(), "123 Pickup St", "456 Dropoff Ave", new BigDecimal("25.00"));
+                sender.getId(), recipient.getId(), "123 Pickup St", "456 Dropoff Ave",
+                new BigDecimal("25.00"), DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(sender.getId())).thenReturn(Optional.of(sender));
         when(recipientProfileRepository.findById(recipient.getId())).thenReturn(Optional.of(recipient));
@@ -114,11 +133,13 @@ class DeliveryServiceTest {
 
         verify(deliveryRepository, never()).save(any());
         verifyNoInteractions(producerTemplate);
+        verifyNoInteractions(parcelRepository);
     }
 
     @Test
     void createDeliveryRequest_throwsSenderProfileNotFoundException_whenSenderMissing() {
-        DeliveryRequestDto request = new DeliveryRequestDto(99L, 2L, "123 Pickup St", "456 Dropoff Ave", new BigDecimal("25.00"));
+        DeliveryRequestDto request = new DeliveryRequestDto(
+                99L, 2L, "123 Pickup St", "456 Dropoff Ave", new BigDecimal("25.00"), DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -132,7 +153,8 @@ class DeliveryServiceTest {
     @Test
     void createDeliveryRequest_throwsRecipientProfileNotFoundException_whenRecipientMissing() {
         SenderProfile sender = buildSender(1L, 1L, "sender@example.com");
-        DeliveryRequestDto request = new DeliveryRequestDto(sender.getId(), 99L, "123 Pickup St", "456 Dropoff Ave", new BigDecimal("25.00"));
+        DeliveryRequestDto request = new DeliveryRequestDto(
+                sender.getId(), 99L, "123 Pickup St", "456 Dropoff Ave", new BigDecimal("25.00"), DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(sender.getId())).thenReturn(Optional.of(sender));
         when(recipientProfileRepository.findById(99L)).thenReturn(Optional.empty());
