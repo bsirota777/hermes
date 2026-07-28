@@ -1,6 +1,8 @@
 package com.hermes.user;
 
 import com.hermes.user.exception.EmailAlreadyExistsException;
+import com.hermes.wallet.Wallet;
+import com.hermes.wallet.WalletRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -23,6 +25,8 @@ class UserServiceTest {
     UserRepository userRepository;
     @Mock
     PasswordEncoder passwordEncoder;
+    @Mock
+    private WalletRepository walletRepository;
     @InjectMocks
     UserService userService;
 
@@ -33,6 +37,7 @@ class UserServiceTest {
 
         User result = userService.createUser(new User("jdoe", "dup@example.com", "secret"));
 
+        verify(walletRepository).save(any(Wallet.class));
         assertThat(result.getPassword()).isEqualTo("hashed");
         verify(userRepository).save(any(User.class));
     }

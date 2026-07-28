@@ -1,5 +1,6 @@
 package com.hermes.user;
 
+import com.hermes.wallet.WalletRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -11,6 +12,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
+
+import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -25,8 +28,12 @@ class UserIntegrationTest {
     @Autowired
     UserRepository userRepository;
 
+    @Autowired
+    WalletRepository walletRepository;
+
     @BeforeEach
     void cleanUp() {
+        walletRepository.deleteAll();
         userRepository.deleteAll();
     }
 
@@ -42,6 +49,12 @@ class UserIntegrationTest {
         assertThat(response.getBody().getPassword()).isNotEqualTo("secret123");
 
         assertThat(userRepository.existsByEmail("jdoe@example.com")).isEqualTo(true);
+
+        // New: verify a wallet was created alongside the user
+        Long userId = response.getBody().getId();
+        assertThat(walletRepository.findByUserId(userId)).isPresent();
+        assertThat(walletRepository.findByUserId(userId).get().getBalance())
+                .isEqualByComparingTo(BigDecimal.ZERO);
     }
 
     @Test
