@@ -30,6 +30,8 @@ public class DeliveryService {
     private final RecipientProfileRepository recipientProfileRepository;
     private final WalletService walletService;
 
+    private static final BigDecimal DEFAULT_COMMISSION_RATE = new BigDecimal("0.80");
+
     public DeliveryService(DeliveryRepository deliveryRepository, ProducerTemplate producerTemplate,
                            SenderProfileRepository senderProfileRepository,
                            RecipientProfileRepository recipientProfileRepository, WalletService walletService) {
@@ -39,6 +41,8 @@ public class DeliveryService {
         this.recipientProfileRepository = recipientProfileRepository;
         this.walletService = walletService;
     }
+
+    private static final BigDecimal DEFAULT_DRIVER_COMMISSION_RATE = new BigDecimal("0.80");
 
     @Transactional
     public Delivery createDeliveryRequest(DeliveryRequestDto request) {
@@ -54,6 +58,8 @@ public class DeliveryService {
         delivery.setRecipient(recipient);
         delivery.setPickUpAddress(request.pickUpAddress());
         delivery.setDropOffAddress(request.dropOffAddress());
+        delivery.setDeliveryFee(request.deliveryFee());
+        delivery.setDriverCommissionRate(DEFAULT_DRIVER_COMMISSION_RATE);
         delivery.setStatus(DeliveryStatus.CREATED);
 
         Delivery saved = deliveryRepository.save(delivery);

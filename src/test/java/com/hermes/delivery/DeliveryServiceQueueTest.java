@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -43,12 +44,15 @@ class DeliveryServiceQueueTest {
 
     @BeforeEach
     void setUp() {
+        deliveryRepository.deleteAll();
+        senderProfileRepository.deleteAll();
+        recipientProfileRepository.deleteAll();
+        userRepository.deleteAll();
+
         User senderUser = new User("jdoe", "sender.test@example.com", "secret");
-        // set whatever fields are @NotNull on User (email, password, role, etc.)
         User savedSenderUser = userRepository.save(senderUser);
 
         User recipientUser = new User("adoe", "recipient.test@example.com", "secret");
-        // different values from senderUser where uniqueness matters (e.g. email)
         User savedRecipientUser = userRepository.save(recipientUser);
 
         SenderProfile sender = new SenderProfile();
@@ -66,7 +70,7 @@ class DeliveryServiceQueueTest {
 
     @Test
     void createDeliveryRequest_savesToDbAndSendsToQueue() {
-        DeliveryRequestDto dto = new DeliveryRequestDto(senderId, recipientId, "123 Main St", "456 Oak Ave");
+        DeliveryRequestDto dto = new DeliveryRequestDto(senderId, recipientId, "123 Main St", "456 Oak Ave", new BigDecimal("25.00"));
 
         Delivery saved = deliveryService.createDeliveryRequest(dto);
 
