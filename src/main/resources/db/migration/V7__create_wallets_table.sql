@@ -1,0 +1,7 @@
+CREATE TABLE wallets (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL UNIQUE REFERENCES users(id),
+  balance NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL
+);

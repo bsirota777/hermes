@@ -3,6 +3,8 @@ package com.hermes.exception;
 import com.hermes.delivery.exception.InvalidDeliveryException;
 import com.hermes.delivery.exception.ParcelNotFoundException;
 import com.hermes.user.exception.EmailAlreadyExistsException;
+import com.hermes.wallet.exception.InsufficientFundsException;
+import com.hermes.wallet.exception.WalletNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -31,6 +33,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleInvalidDelivery(InvalidDeliveryException ex) {
         log.warn("Invalid delivery request: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidDeliveryException.class)
+    public ResponseEntity<String> handleInsufficientFunds(InsufficientFundsException ex) {
+        log.warn("Insufficient Funds request: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(WalletNotFoundException.class)
+    public ResponseEntity<String> handleInsufficientFunds(WalletNotFoundException ex) {
+        log.warn("Wallet Not Found request: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
     // Catch All

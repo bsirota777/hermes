@@ -1,6 +1,8 @@
 package com.hermes.user;
 
 import com.hermes.user.exception.EmailAlreadyExistsException;
+import com.hermes.wallet.Wallet;
+import com.hermes.wallet.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -8,6 +10,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,13 +21,21 @@ public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final WalletRepository walletRepository;
 
+    @Transactional
     public User createUser(User user) {
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new EmailAlreadyExistsException(user.getEmail());
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        return userRepository.save(user);
+
+        User savedUser = userRepository.save(user);
+
+        Wallet wallet = new Wallet(savedUser);
+        walletRepository.save(wallet);
+
+        return savedUser;
     }
 
     public List<User> searchUsers(String name) {
