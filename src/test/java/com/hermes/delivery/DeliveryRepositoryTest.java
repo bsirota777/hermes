@@ -73,6 +73,8 @@ class DeliveryRepositoryTest {
         delivery.setRecipient(recipient);
         delivery.setDriver(driver);
         delivery.setStatus(status);
+        delivery.setPickUpAddress("123 Test St");
+        delivery.setDropOffAddress("456 Sample Ave");
         return delivery;
     }
 

@@ -65,6 +65,8 @@ class ParcelRepositoryTest {
         Delivery delivery = new Delivery();
         delivery.setSender(sender);
         delivery.setRecipient(recipient);
+        delivery.setPickUpAddress("123 Test St");
+        delivery.setDropOffAddress("456 Sample Ave");
         delivery.setStatus(DeliveryStatus.CREATED);
         return deliveryRepository.save(delivery);
     }
@@ -72,6 +74,7 @@ class ParcelRepositoryTest {
     private Parcel buildParcel(Delivery delivery, boolean insured) {
         Parcel parcel = new Parcel();
         parcel.setDelivery(delivery);
+        parcel.setDescription("Test parcel");
         parcel.setLengthCm(new BigDecimal("30.00"));
         parcel.setWidthCm(new BigDecimal("20.00"));
         parcel.setHeightCm(new BigDecimal("15.00"));
