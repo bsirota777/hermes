@@ -10,6 +10,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,5 +57,16 @@ public class Delivery {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
     // pickup/dropoff addresses, timestamps, etc.
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal deliveryFee;
+
+    // Stored per-delivery rather than a single global constant, so you can change
+    // the platform's cut over time without affecting already-created deliveries
+    @Column(nullable = false, precision = 5, scale = 4)
+    private BigDecimal driverCommissionRate; // e.g. 0.8000 = driver keeps 80%
+
+    @Version
+    private Long version; // optimistic locking for the reserve race condition
 }
 

@@ -1,8 +1,9 @@
 package com.hermes.exception;
 
-import com.hermes.delivery.exception.InvalidDeliveryException;
-import com.hermes.delivery.exception.ParcelNotFoundException;
+import com.hermes.delivery.exception.*;
 import com.hermes.user.exception.EmailAlreadyExistsException;
+import com.hermes.user.exception.RecipientProfileNotFoundException;
+import com.hermes.user.exception.SenderProfileNotFoundException;
 import com.hermes.wallet.exception.InsufficientFundsException;
 import com.hermes.wallet.exception.WalletNotFoundException;
 import org.slf4j.Logger;
@@ -43,7 +44,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(WalletNotFoundException.class)
-    public ResponseEntity<String> handleInsufficientFunds(WalletNotFoundException ex) {
+    public ResponseEntity<String> handleWalletNotFound(WalletNotFoundException ex) {
         log.warn("Wallet Not Found request: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
@@ -57,6 +58,36 @@ public class GlobalExceptionHandler {
 
         log.warn("Validation failed: {}", message);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
+    }
+
+    @ExceptionHandler(DeliveryNotFoundException.class)
+    public ResponseEntity<String> handleDeliveryNotFound(DeliveryNotFoundException ex) {
+        log.warn("Delivery not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(DeliveryAlreadyAssignedException.class)
+    public ResponseEntity<String> handleDeliveryAlreadyAssigned(DeliveryAlreadyAssignedException ex) {
+        log.warn("Delivery already assigned: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidStatusTransitionException.class)
+    public ResponseEntity<String> handleInvalidStatusTransition(InvalidStatusTransitionException ex) {
+        log.warn("Invalid status transition: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(SenderProfileNotFoundException.class)
+    public ResponseEntity<String> handleSenderProfileNotFound(SenderProfileNotFoundException ex) {
+        log.warn("Sender profile not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(RecipientProfileNotFoundException.class)
+    public ResponseEntity<String> handleRecipientProfileNotFound(RecipientProfileNotFoundException ex) {
+        log.warn("Recipient profile not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
     // Catch All
