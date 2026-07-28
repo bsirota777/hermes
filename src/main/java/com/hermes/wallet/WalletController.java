@@ -2,6 +2,7 @@ package com.hermes.wallet;
 
 import com.hermes.wallet.dto.CashOutRequestDto;
 import com.hermes.wallet.dto.WalletBalanceResponseDto;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +23,7 @@ public class WalletController {
     @PostMapping("/{userId}/cashout")
     public ResponseEntity<WalletBalanceResponseDto> cashOut(
             @PathVariable Long userId,
-            @RequestBody CashOutRequestDto request) {
+            @Valid @RequestBody CashOutRequestDto request) {
         Wallet wallet = walletService.cashOut(userId, request.amount());
         return ResponseEntity.ok(new WalletBalanceResponseDto(userId, wallet.getBalance()));
     }
