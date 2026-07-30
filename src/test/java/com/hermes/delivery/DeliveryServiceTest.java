@@ -1,5 +1,6 @@
 package com.hermes.delivery;
 
+import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.dto.DeliveryRequestDto;
 import com.hermes.delivery.dto.ParcelDto;
 import com.hermes.delivery.exception.InvalidDeliveryException;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -29,6 +31,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@Import(TestcontainersConfig.class)
 class DeliveryServiceTest {
 
     @Mock

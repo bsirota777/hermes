@@ -1,5 +1,6 @@
 package com.hermes.delivery;
 
+import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.dto.DeliveryRequestDto;
 import com.hermes.delivery.route.DeliveryRequestQueueHandler;
 import com.hermes.user.*;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
@@ -20,6 +22,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.verify;
 
 @SpringBootTest
+@Import(TestcontainersConfig.class)
 class DeliveryServiceQueueTest {
 
     @Autowired

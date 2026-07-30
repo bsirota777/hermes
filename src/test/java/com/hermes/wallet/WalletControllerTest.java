@@ -1,6 +1,7 @@
 package com.hermes.wallet;
 
 import com.hermes.BaseControllerTest;
+import com.hermes.TestcontainersConfig;
 import com.hermes.user.User;
 import com.hermes.wallet.dto.CashOutRequestDto;
 import org.springframework.context.annotation.Import;
@@ -23,6 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(WalletController.class)
+@Import(TestcontainersConfig.class)
 class WalletControllerTest extends BaseControllerTest {
 
     @Autowired

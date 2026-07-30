@@ -1,10 +1,12 @@
 package com.hermes.delivery;
 
+import com.hermes.TestcontainersConfig;
 import com.hermes.user.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
+@Import(TestcontainersConfig.class)
 class ParcelRepositoryTest {
 
     @Autowired
@@ -67,6 +70,8 @@ class ParcelRepositoryTest {
         delivery.setRecipient(recipient);
         delivery.setPickUpAddress("123 Test St");
         delivery.setDropOffAddress("456 Sample Ave");
+        delivery.setDeliveryFee(new BigDecimal("25.00"));       // adjust field name/type to match your entity
+        delivery.setDriverCommissionRate(new BigDecimal("0.20")); // adjust to match your entity
         delivery.setStatus(DeliveryStatus.CREATED);
         return deliveryRepository.save(delivery);
     }

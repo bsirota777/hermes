@@ -1,6 +1,7 @@
 package com.hermes.exception;
 
 import com.hermes.delivery.exception.*;
+import com.hermes.user.exception.DriverProfileNotFoundException;
 import com.hermes.user.exception.EmailAlreadyExistsException;
 import com.hermes.user.exception.RecipientProfileNotFoundException;
 import com.hermes.user.exception.SenderProfileNotFoundException;
@@ -87,6 +88,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RecipientProfileNotFoundException.class)
     public ResponseEntity<String> handleRecipientProfileNotFound(RecipientProfileNotFoundException ex) {
         log.warn("Recipient profile not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(DriverProfileNotFoundException.class)
+    public ResponseEntity<String> handleDriverProfileNotFound(DriverProfileNotFoundException ex) {
+        log.warn("Driver profile not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 

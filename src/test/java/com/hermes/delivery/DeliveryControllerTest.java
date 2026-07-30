@@ -1,17 +1,30 @@
 package com.hermes.delivery;
 
+import com.hermes.TestcontainersConfig;
+import com.hermes.delivery.dto.DeliveryDto;
+import com.hermes.delivery.exception.DeliveryAlreadyAssignedException;
+import com.hermes.delivery.exception.DeliveryNotFoundException;
+import com.hermes.delivery.exception.InvalidStatusTransitionException;
+import com.hermes.delivery.mapper.DeliveryMapper;
+import com.hermes.security.SecurityConfig;
 import com.hermes.user.DriverProfile;
+import com.hermes.user.DriverProfileRepository;
 import com.hermes.user.RecipientProfile;
 import com.hermes.user.SenderProfile;
 import com.hermes.user.User;
 import org.junit.jupiter.api.Test;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -21,8 +34,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @WebMvcTest(DeliveryController.class)
+@Import({SecurityConfig.class, TestcontainersConfig.class})
 class DeliveryControllerTest {
 
     @Autowired
@@ -36,6 +51,9 @@ class DeliveryControllerTest {
 
     @MockitoBean
     private com.hermes.user.UserService userService;
+
+    @MockitoBean
+    private DriverProfileRepository driverProfileRepository;
 
     private Delivery buildInTransitDelivery(Long id) {
         User senderUser = new User("Alice Sender", "alice@example.com", "secret");
@@ -66,6 +84,8 @@ class DeliveryControllerTest {
         return delivery;
     }
 
+    // --- existing in-transit tests ---
+
     @Test
     void getInTransitDeliveries_returnsMappedDtos() throws Exception {
         Delivery delivery = buildInTransitDelivery(1L);
@@ -73,7 +93,8 @@ class DeliveryControllerTest {
 
         when(deliveryService.getInTransitDeliveries(any(Pageable.class))).thenReturn(page);
 
-        mockMvc.perform(get("/deliveries/in-transit"))
+        mockMvc.perform(get("/deliveries/in-transit")
+                .with(user("charlie@example.com")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(1)))
                 .andExpect(jsonPath("$.content[0].id").value(1))
@@ -92,7 +113,8 @@ class DeliveryControllerTest {
 
         when(deliveryService.getInTransitDeliveries(any(Pageable.class))).thenReturn(emptyPage);
 
-        mockMvc.perform(get("/deliveries/in-transit"))
+        mockMvc.perform(get("/deliveries/in-transit")
+                .with(user("charlie@example.com")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(0)));
     }
@@ -103,9 +125,106 @@ class DeliveryControllerTest {
 
         when(deliveryService.getInTransitDeliveries(any(Pageable.class))).thenReturn(page);
 
-        mockMvc.perform(get("/deliveries/in-transit").param("page", "2").param("size", "5"))
+        mockMvc.perform(get("/deliveries/in-transit").param("page", "2").param("size", "5")
+                .with(user("charlie@example.com")))
                 .andExpect(status().isOk());
-        // verifies the request is accepted; if you want to assert the exact Pageable passed,
-        // capture the argument with an ArgumentCaptor instead of any(Pageable.class)
+    }
+
+    // --- assign endpoint tests ---
+
+    @Test
+    void assignDriver_returnsUpdatedDelivery_onSuccess() throws Exception {
+        User driverUser = new User("Charlie Driver", "charlie@example.com", "secret");
+        driverUser.setId(300L);
+
+        DriverProfile driverProfile = new DriverProfile();
+        driverProfile.setUser(driverUser);
+
+        Delivery assignedDelivery = buildInTransitDelivery(1L);
+        assignedDelivery.setStatus(DeliveryStatus.ASSIGNED);
+        DeliveryDto expectedDto = DeliveryMapper.toDto(assignedDelivery);
+
+        when(userService.loadUserByEmail("charlie@example.com")).thenReturn(driverUser);
+        when(driverProfileRepository.findByUserId(300L)).thenReturn(Optional.of(driverProfile));
+        when(deliveryService.assignDriver(eq(1L), eq(driverProfile))).thenReturn(expectedDto);
+
+        mockMvc.perform(post("/deliveries/1/assign")
+                .with(user("charlie@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.status").value("ASSIGNED"));
+    }
+
+    @Test
+    void assignDriver_returns404_whenDeliveryNotFound() throws Exception {
+        User driverUser = new User("Charlie Driver", "charlie@example.com", "secret");
+        driverUser.setId(300L);
+
+        DriverProfile driverProfile = new DriverProfile();
+        driverProfile.setUser(driverUser);
+
+        when(userService.loadUserByEmail("charlie@example.com")).thenReturn(driverUser);
+        when(driverProfileRepository.findByUserId(300L)).thenReturn(Optional.of(driverProfile));
+        when(deliveryService.assignDriver(eq(99L), eq(driverProfile)))
+                .thenThrow(new DeliveryNotFoundException(99L));
+
+        mockMvc.perform(post("/deliveries/99/assign")
+                .with(user("charlie@example.com")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void assignDriver_returns409_whenAlreadyAssigned() throws Exception {
+        User driverUser = new User("Charlie Driver", "charlie@example.com", "secret");
+        driverUser.setId(300L);
+
+        DriverProfile driverProfile = new DriverProfile();
+        driverProfile.setUser(driverUser);
+
+        when(userService.loadUserByEmail("charlie@example.com")).thenReturn(driverUser);
+        when(driverProfileRepository.findByUserId(300L)).thenReturn(Optional.of(driverProfile));
+        when(deliveryService.assignDriver(eq(1L), eq(driverProfile)))
+                .thenThrow(new DeliveryAlreadyAssignedException(1L));
+
+        mockMvc.perform(post("/deliveries/1/assign")
+                .with(user("charlie@example.com")))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void assignDriver_returns409_whenInvalidStatusTransition() throws Exception {
+        User driverUser = new User("Charlie Driver", "charlie@example.com", "secret");
+        driverUser.setId(300L);
+
+        DriverProfile driverProfile = new DriverProfile();
+        driverProfile.setUser(driverUser);
+
+        when(userService.loadUserByEmail("charlie@example.com")).thenReturn(driverUser);
+        when(driverProfileRepository.findByUserId(300L)).thenReturn(Optional.of(driverProfile));
+        when(deliveryService.assignDriver(eq(1L), eq(driverProfile)))
+                .thenThrow(new InvalidStatusTransitionException(DeliveryStatus.IN_TRANSIT, DeliveryStatus.ASSIGNED));
+
+        mockMvc.perform(post("/deliveries/1/assign")
+                .with(user("charlie@example.com")))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void assignDriver_returns404_whenDriverProfileNotFound() throws Exception {
+        User userWithoutDriverProfile = new User("Dana NoProfile", "dana@example.com", "secret");
+        userWithoutDriverProfile.setId(400L);
+
+        when(userService.loadUserByEmail("dana@example.com")).thenReturn(userWithoutDriverProfile);
+        when(driverProfileRepository.findByUserId(400L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/deliveries/1/assign")
+                .with(user("dana@example.com")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void assignDriver_returns403_whenUnauthenticated() throws Exception {
+        mockMvc.perform(post("/deliveries/1/assign"))
+                .andExpect(status().isForbidden());
     }
 }

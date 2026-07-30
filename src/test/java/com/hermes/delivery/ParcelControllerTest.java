@@ -1,8 +1,10 @@
 package com.hermes.delivery;
 
+import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.dto.CreateParcelRequestDto;
 import com.hermes.delivery.exception.ParcelNotFoundException;
 import com.hermes.security.JwtAuthFilter;
+import org.springframework.context.annotation.Import;
 import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = ParcelController.class,
         excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JwtAuthFilter.class))
+@Import(TestcontainersConfig.class)
 class ParcelControllerTest {
 
     @Autowired

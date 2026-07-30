@@ -1,5 +1,6 @@
 package com.hermes.delivery;
 
+import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.dto.CreateParcelRequestDto;
 import com.hermes.delivery.exception.ParcelNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -7,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.Import;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -19,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@Import(TestcontainersConfig.class)
 class ParcelServiceTest {
 
     @Mock

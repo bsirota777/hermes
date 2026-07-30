@@ -1,5 +1,6 @@
 package com.hermes.wallet;
 
+import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.Delivery;
 import com.hermes.delivery.DeliveryRepository;
 import com.hermes.delivery.DeliveryStatus;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -16,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Import(TestcontainersConfig.class)
 class WalletTransactionRepositoryTest {
 
     @Autowired

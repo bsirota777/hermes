@@ -1,5 +1,6 @@
 package com.hermes.wallet;
 
+import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.Delivery;
 import com.hermes.delivery.DeliveryRepository;
 import com.hermes.user.User;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -21,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@Import(TestcontainersConfig.class)
 class WalletServiceTest {
 
     @Mock

@@ -1,10 +1,14 @@
 package com.hermes.delivery;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
+import com.hermes.delivery.dto.DeliveryDto;
 import com.hermes.delivery.dto.DeliveryRequestDto;
+import com.hermes.delivery.dto.DeliveryResponseDto;
 import com.hermes.delivery.dto.ParcelDto;
-import com.hermes.delivery.exception.InvalidDeliveryException;
+import com.hermes.delivery.exception.*;
+import com.hermes.delivery.mapper.DeliveryMapper;
 import com.hermes.user.*;
 import com.hermes.user.exception.RecipientProfileNotFoundException;
 import com.hermes.user.exception.SenderProfileNotFoundException;
@@ -17,10 +21,6 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import com.hermes.delivery.exception.DeliveryNotFoundException;
-import com.hermes.delivery.exception.DeliveryAlreadyAssignedException;
-import com.hermes.delivery.exception.InvalidStatusTransitionException;
 
 @Service
 public class DeliveryService {
@@ -140,6 +140,25 @@ public class DeliveryService {
         }
 
         return saved;
+    }
+
+    @Transactional
+    public DeliveryDto assignDriver(Long deliveryId, DriverProfile driver) {
+        Delivery delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(() -> new DeliveryNotFoundException(deliveryId));
+
+        if (delivery.getStatus() != DeliveryStatus.CREATED) {
+            throw new InvalidStatusTransitionException(delivery.getStatus(), DeliveryStatus.ASSIGNED);
+        }
+        if (delivery.getDriver() != null) {
+            throw new DeliveryAlreadyAssignedException(deliveryId);
+        }
+
+        delivery.setDriver(driver);
+        delivery.setStatus(DeliveryStatus.ASSIGNED);
+
+        Delivery saved = deliveryRepository.save(delivery);
+        return DeliveryMapper.toDto(saved);
     }
 
     private void payDriver(Delivery delivery) {
