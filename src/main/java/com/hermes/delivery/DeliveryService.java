@@ -1,14 +1,16 @@
 package com.hermes.delivery;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 import com.hermes.delivery.dto.DeliveryDto;
 import com.hermes.delivery.dto.DeliveryRequestDto;
-import com.hermes.delivery.dto.DeliveryResponseDto;
 import com.hermes.delivery.dto.ParcelDto;
 import com.hermes.delivery.exception.*;
 import com.hermes.delivery.mapper.DeliveryMapper;
+import com.hermes.geocoding.Coordinates;
+import com.hermes.geocoding.GeocodingService;
+import com.hermes.pricing.PricingService;
+import com.hermes.pricing.RoutingService;
 import com.hermes.user.*;
 import com.hermes.user.exception.RecipientProfileNotFoundException;
 import com.hermes.user.exception.SenderProfileNotFoundException;
@@ -31,19 +33,24 @@ public class DeliveryService {
     private final RecipientProfileRepository recipientProfileRepository;
     private final ParcelRepository parcelRepository;
     private final WalletService walletService;
+    private final GeocodingService geocodingService;
+    private final PricingService pricingService; // once built
 
     private static final BigDecimal DEFAULT_DRIVER_COMMISSION_RATE = new BigDecimal("0.80");
 
     public DeliveryService(DeliveryRepository deliveryRepository, ProducerTemplate producerTemplate,
                            SenderProfileRepository senderProfileRepository,
                            RecipientProfileRepository recipientProfileRepository,
-                           ParcelRepository parcelRepository, WalletService walletService) {
+                           ParcelRepository parcelRepository, WalletService walletService,
+                           GeocodingService geocodingService, PricingService pricingService) {
         this.deliveryRepository = deliveryRepository;
         this.producerTemplate = producerTemplate;
         this.senderProfileRepository = senderProfileRepository;
         this.recipientProfileRepository = recipientProfileRepository;
         this.parcelRepository = parcelRepository;
         this.walletService = walletService;
+        this.geocodingService = geocodingService;
+        this.pricingService = pricingService;
     }
 
     @Transactional
@@ -55,12 +62,16 @@ public class DeliveryService {
 
         validateSenderNotRecipient(sender, recipient);
 
+        Coordinates pickUp = geocodingService.geocode(request.pickUpAddress());
+        Coordinates dropOff = geocodingService.geocode(request.dropOffAddress());
+        BigDecimal deliveryFee = pricingService.calculateDeliveryFee(pickUp, dropOff, request.parcels());
+
         Delivery delivery = new Delivery();
         delivery.setSender(sender);
         delivery.setRecipient(recipient);
         delivery.setPickUpAddress(request.pickUpAddress());
         delivery.setDropOffAddress(request.dropOffAddress());
-        delivery.setDeliveryFee(request.deliveryFee());
+        delivery.setDeliveryFee(deliveryFee);
         delivery.setDriverCommissionRate(DEFAULT_DRIVER_COMMISSION_RATE);
         delivery.setStatus(DeliveryStatus.CREATED);
 

@@ -2,7 +2,11 @@ package com.hermes.delivery;
 
 import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.dto.DeliveryRequestDto;
+import com.hermes.delivery.dto.ParcelDto;
+import com.hermes.pricing.PricingService;
 import com.hermes.delivery.route.DeliveryRequestQueueHandler;
+import com.hermes.geocoding.Coordinates;
+import com.hermes.geocoding.GeocodingService;
 import com.hermes.user.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,12 +19,14 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.Duration;
-import com.hermes.delivery.dto.ParcelDto;
 import java.util.List;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @Import(TestcontainersConfig.class)
@@ -44,6 +50,12 @@ class DeliveryServiceQueueTest {
 
     @MockitoBean
     private DeliveryRequestQueueHandler deliveryRequestQueueHandler;
+
+    @MockitoBean
+    private GeocodingService geocodingService;
+
+    @MockitoBean
+    private PricingService pricingService;
 
     private Long senderId;
     private Long recipientId;
@@ -77,9 +89,13 @@ class DeliveryServiceQueueTest {
 
     @Test
     void createDeliveryRequest_savesToDbAndSendsToQueue() {
+        when(geocodingService.geocode(anyString()))
+                .thenReturn(new Coordinates(-37.8136, 144.9631));
+        when(pricingService.calculateDeliveryFee(any(), any(), any()))
+                .thenReturn(new BigDecimal("25.00"));
 
         DeliveryRequestDto dto = new DeliveryRequestDto(
-                senderId, recipientId, "123 Main St", "456 Oak Ave", new BigDecimal("25.00"),
+                senderId, recipientId, "123 Main St", "456 Oak Ave",
                 List.of(new ParcelDto(
                         "Test parcel",
                         new BigDecimal("10.00"),
@@ -96,6 +112,7 @@ class DeliveryServiceQueueTest {
 
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getStatus()).isEqualTo(DeliveryStatus.CREATED);
+        assertThat(saved.getDeliveryFee()).isEqualByComparingTo("25.00");
         assertThat(deliveryRepository.findById(saved.getId())).isPresent();
 
         ArgumentCaptor<Delivery> captor = ArgumentCaptor.forClass(Delivery.class);

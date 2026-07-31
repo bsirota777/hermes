@@ -1,6 +1,7 @@
 package com.hermes.exception;
 
 import com.hermes.delivery.exception.*;
+import com.hermes.geocoding.exception.GeocodingFailedException;
 import com.hermes.payment.exception.OnboardingFailedException;
 import com.hermes.payment.exception.PayoutFailedException;
 import com.hermes.payment.exception.StripeAccountNotLinkedException;
@@ -126,6 +127,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleOnboardingFailed(OnboardingFailedException ex) {
         log.error(ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body("Onboarding failed. Please try again later.");
+    }
+
+    @ExceptionHandler(GeocodingFailedException.class)
+    public ResponseEntity<String> handleGeocodingFailed(GeocodingFailedException ex) {
+        log.warn(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Could not verify the provided address. Please check it and try again.");
     }
 
     // Catch All

@@ -4,6 +4,9 @@ import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.dto.DeliveryRequestDto;
 import com.hermes.delivery.dto.ParcelDto;
 import com.hermes.delivery.exception.InvalidDeliveryException;
+import com.hermes.pricing.PricingService;
+import com.hermes.geocoding.Coordinates;
+import com.hermes.geocoding.GeocodingService;
 import com.hermes.user.*;
 import com.hermes.user.exception.RecipientProfileNotFoundException;
 import com.hermes.user.exception.SenderProfileNotFoundException;
@@ -27,6 +30,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -52,6 +56,12 @@ class DeliveryServiceTest {
     @Mock
     private ProducerTemplate producerTemplate;
 
+    @Mock
+    private GeocodingService geocodingService;
+
+    @Mock
+    private PricingService pricingService;
+
     private DeliveryService deliveryService;
 
     private static final List<ParcelDto> DEFAULT_PARCELS = List.of(new ParcelDto(
@@ -68,7 +78,8 @@ class DeliveryServiceTest {
     @BeforeEach
     void setUp() {
         deliveryService = new DeliveryService(deliveryRepository, producerTemplate,
-                senderProfileRepository, recipientProfileRepository, parcelRepository, walletService);
+                senderProfileRepository, recipientProfileRepository, parcelRepository, walletService,
+                geocodingService, pricingService);
     }
 
     private User buildUser(Long id, String email) {
@@ -91,19 +102,24 @@ class DeliveryServiceTest {
         return recipient;
     }
 
+    private void stubGeocodingAndPricing() {
+        when(geocodingService.geocode(anyString())).thenReturn(new Coordinates(-37.8136, 144.9631));
+        when(pricingService.calculateDeliveryFee(any(), any(), any())).thenReturn(new BigDecimal("25.00"));
+    }
+
     @Test
     void createDeliveryRequest_savesDeliveryAndPublishesToQueue_whenSenderAndRecipientDifferent() {
         SenderProfile sender = buildSender(1L, 1L, "sender@example.com");
         RecipientProfile recipient = buildRecipient(2L, 2L, "recipient@example.com");
 
         DeliveryRequestDto request = new DeliveryRequestDto(
-                sender.getId(), recipient.getId(), "123 Pickup St", "456 Dropoff Ave",
-                new BigDecimal("25.00"), DEFAULT_PARCELS);
+                sender.getId(), recipient.getId(), "123 Pickup St", "456 Dropoff Ave", DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(sender.getId())).thenReturn(Optional.of(sender));
         when(recipientProfileRepository.findById(recipient.getId())).thenReturn(Optional.of(recipient));
         when(deliveryRepository.save(any(Delivery.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        stubGeocodingAndPricing();
 
         Delivery result = deliveryService.createDeliveryRequest(request);
 
@@ -112,6 +128,7 @@ class DeliveryServiceTest {
         assertThat(result.getPickUpAddress()).isEqualTo("123 Pickup St");
         assertThat(result.getDropOffAddress()).isEqualTo("456 Dropoff Ave");
         assertThat(result.getStatus()).isEqualTo(DeliveryStatus.CREATED);
+        assertThat(result.getDeliveryFee()).isEqualByComparingTo("25.00");
 
         verify(deliveryRepository).save(any(Delivery.class));
         verify(parcelRepository).save(any(Parcel.class));
@@ -124,8 +141,7 @@ class DeliveryServiceTest {
         RecipientProfile recipient = buildRecipient(2L, 1L, "same@example.com");
 
         DeliveryRequestDto request = new DeliveryRequestDto(
-                sender.getId(), recipient.getId(), "123 Pickup St", "456 Dropoff Ave",
-                new BigDecimal("25.00"), DEFAULT_PARCELS);
+                sender.getId(), recipient.getId(), "123 Pickup St", "456 Dropoff Ave", DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(sender.getId())).thenReturn(Optional.of(sender));
         when(recipientProfileRepository.findById(recipient.getId())).thenReturn(Optional.of(recipient));
@@ -137,12 +153,14 @@ class DeliveryServiceTest {
         verify(deliveryRepository, never()).save(any());
         verifyNoInteractions(producerTemplate);
         verifyNoInteractions(parcelRepository);
+        verifyNoInteractions(geocodingService);
+        verifyNoInteractions(pricingService);
     }
 
     @Test
     void createDeliveryRequest_throwsSenderProfileNotFoundException_whenSenderMissing() {
         DeliveryRequestDto request = new DeliveryRequestDto(
-                99L, 2L, "123 Pickup St", "456 Dropoff Ave", new BigDecimal("25.00"), DEFAULT_PARCELS);
+                99L, 2L, "123 Pickup St", "456 Dropoff Ave", DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -151,13 +169,14 @@ class DeliveryServiceTest {
 
         verify(deliveryRepository, never()).save(any());
         verifyNoInteractions(producerTemplate);
+        verifyNoInteractions(geocodingService);
     }
 
     @Test
     void createDeliveryRequest_throwsRecipientProfileNotFoundException_whenRecipientMissing() {
         SenderProfile sender = buildSender(1L, 1L, "sender@example.com");
         DeliveryRequestDto request = new DeliveryRequestDto(
-                sender.getId(), 99L, "123 Pickup St", "456 Dropoff Ave", new BigDecimal("25.00"), DEFAULT_PARCELS);
+                sender.getId(), 99L, "123 Pickup St", "456 Dropoff Ave", DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(sender.getId())).thenReturn(Optional.of(sender));
         when(recipientProfileRepository.findById(99L)).thenReturn(Optional.empty());
@@ -167,6 +186,7 @@ class DeliveryServiceTest {
 
         verify(deliveryRepository, never()).save(any());
         verifyNoInteractions(producerTemplate);
+        verifyNoInteractions(geocodingService);
     }
 
     @Test

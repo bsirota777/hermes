@@ -36,6 +36,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-flyway'
 	implementation 'org.flywaydb:flyway-database-postgresql'
 	implementation 'com.stripe:stripe-java:33.1.1'
+	implementation 'com.google.maps:google-maps-services:2.2.0' // check for latest on Maven Central
 
 	compileOnly 'org.projectlombok:lombok'
 

@@ -22,10 +22,6 @@ public record DeliveryRequestDto(
         @NotBlank
         String dropOffAddress,
 
-        @NotNull
-        @DecimalMin(value = "0.01")
-        BigDecimal deliveryFee,
-
         @NotEmpty
         @Valid
         List<ParcelDto> parcels
