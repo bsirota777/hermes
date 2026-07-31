@@ -15,8 +15,12 @@ public class PayoutService {
 
     private final StripeClient stripeClient;
 
-    public PayoutService(@Value("${stripe.secret-key}") String secretKey) {
+    /*public PayoutService(@Value("${stripe.secret-key}") String secretKey) {
         this.stripeClient = new StripeClient(secretKey);
+    }*/
+
+    public PayoutService(StripeClient stripeClient) {
+        this.stripeClient = stripeClient;
     }
 
     public Transfer sendPayout(String stripeAccountId, BigDecimal amount, String currency, Long walletTransactionId) {

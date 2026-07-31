@@ -19,9 +19,9 @@ public class StripeOnboardingService {
     private final StripeClient stripeClient;
     private final UserRepository userRepository;
 
-    public StripeOnboardingService(@Value("${stripe.secret-key}") String secretKey,
+    public StripeOnboardingService(StripeClient stripeClient,
                                    UserRepository userRepository) {
-        this.stripeClient = new StripeClient(secretKey);
+        this.stripeClient = stripeClient;
         this.userRepository = userRepository;
     }
 
