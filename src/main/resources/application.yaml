@@ -16,6 +16,8 @@ logging:
   level:
     org.springframework.security: DEBUG
 
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY}
 
 #azure:
 #  cosmos:

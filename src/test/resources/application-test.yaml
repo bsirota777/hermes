@@ -7,6 +7,10 @@ spring:
 logging:
   level:
     org.springframework.security: DEBUG
+
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:sk_test_dummy_key_for_tests}
+
 #azure:
 #  cosmos:
 #    uri: https://localhost:8081

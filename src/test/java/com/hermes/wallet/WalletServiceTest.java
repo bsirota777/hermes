@@ -3,9 +3,12 @@ package com.hermes.wallet;
 import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.Delivery;
 import com.hermes.delivery.DeliveryRepository;
+import com.hermes.payment.PayoutService;
 import com.hermes.user.User;
+import com.hermes.user.UserRepository;
 import com.hermes.wallet.exception.InsufficientFundsException;
 import com.hermes.wallet.exception.WalletNotFoundException;
+import com.stripe.model.Transfer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,9 +35,11 @@ class WalletServiceTest {
     @Mock
     private WalletTransactionRepository walletTransactionRepository;
 
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
-    private DeliveryRepository deliveryRepository;
+    private PayoutService payoutService;
 
     @InjectMocks
     private WalletService walletService;
@@ -155,16 +160,35 @@ class WalletServiceTest {
 
     @Test
     void cashOut_debitsWallet_whenSufficientFunds() {
+        User user = new User("Test User", "test@example.com", "password");
+        user.setStripeAccountId("acct_test123");
+        user.setStripePayoutsEnabled(true);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
         when(walletRepository.save(any(Wallet.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(payoutService.sendPayout(eq("acct_test123"), any(BigDecimal.class), anyString(), any()))
+                .thenReturn(mock(Transfer.class));
 
-        Wallet result = walletService.cashOut(userId, new BigDecimal("30.00"));
+        Wallet result = walletService.cashOut(userId, new BigDecimal("40.00"));
 
-        assertThat(result.getBalance()).isEqualByComparingTo("70.00");
+        assertThat(result.getBalance()).isEqualByComparingTo("60.00");
+
+        verify(walletTransactionRepository).save(argThat(txn ->
+                txn.getAmount().compareTo(new BigDecimal("-40.00")) == 0 &&
+                        txn.getType() == WalletTransactionType.CASHOUT &&
+                        txn.getRelatedDelivery() == null
+        ));
+        verify(payoutService).sendPayout(eq("acct_test123"), eq(new BigDecimal("40.00")), anyString(), any());
     }
 
     @Test
     void cashOut_throwsInsufficientFundsException_whenBalanceTooLow() {
+        User user = new User("Test User", "test@example.com", "password");
+        user.setStripeAccountId("acct_test123");
+        user.setStripePayoutsEnabled(true);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
 
         assertThatThrownBy(() -> walletService.cashOut(userId, new BigDecimal("1000.00")))

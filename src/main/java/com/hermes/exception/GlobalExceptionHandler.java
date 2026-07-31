@@ -1,10 +1,11 @@
 package com.hermes.exception;
 
 import com.hermes.delivery.exception.*;
-import com.hermes.user.exception.DriverProfileNotFoundException;
-import com.hermes.user.exception.EmailAlreadyExistsException;
-import com.hermes.user.exception.RecipientProfileNotFoundException;
-import com.hermes.user.exception.SenderProfileNotFoundException;
+import com.hermes.payment.exception.OnboardingFailedException;
+import com.hermes.payment.exception.PayoutFailedException;
+import com.hermes.payment.exception.StripeAccountNotLinkedException;
+import com.hermes.payment.exception.StripeOnboardingIncompleteException;
+import com.hermes.user.exception.*;
 import com.hermes.wallet.exception.InsufficientFundsException;
 import com.hermes.wallet.exception.WalletNotFoundException;
 import org.slf4j.Logger;
@@ -95,6 +96,36 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleDriverProfileNotFound(DriverProfileNotFoundException ex) {
         log.warn("Driver profile not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<String> handleUserNotFound(UserNotFoundException ex) {
+        log.warn(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(StripeAccountNotLinkedException.class)
+    public ResponseEntity<String> handleStripeAccountNotLinked(StripeAccountNotLinkedException ex) {
+        log.warn(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(StripeOnboardingIncompleteException.class)
+    public ResponseEntity<String> handleStripeOnboardingIncomplete(StripeOnboardingIncompleteException ex) {
+        log.warn(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(PayoutFailedException.class)
+    public ResponseEntity<String> handlePayoutFailed(PayoutFailedException ex) {
+        log.error(ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body("Payout failed. Please try again later.");
+    }
+
+    @ExceptionHandler(OnboardingFailedException.class)
+    public ResponseEntity<String> handleOnboardingFailed(OnboardingFailedException ex) {
+        log.error(ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body("Onboarding failed. Please try again later.");
     }
 
     // Catch All

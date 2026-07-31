@@ -1,6 +1,12 @@
 package com.hermes.wallet;
 
 import com.hermes.delivery.Delivery;
+import com.hermes.payment.PayoutService;
+import com.hermes.payment.exception.StripeAccountNotLinkedException;
+import com.hermes.payment.exception.StripeOnboardingIncompleteException;
+import com.hermes.user.User;
+import com.hermes.user.UserRepository;
+import com.hermes.user.exception.UserNotFoundException;
 import com.hermes.wallet.exception.InsufficientFundsException;
 import com.hermes.wallet.exception.WalletNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +21,8 @@ public class WalletService {
 
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final UserRepository userRepository;
+    private final PayoutService payoutService;
 
     @Transactional(readOnly = true)
     public BigDecimal getBalance(Long userId) {
@@ -46,7 +54,23 @@ public class WalletService {
 
     @Transactional
     public Wallet cashOut(Long userId, BigDecimal amount) {
-        return debit(userId, amount, WalletTransactionType.CASHOUT, null);
+        String stripeAccountId = getStripeAccountIdForUser(userId);
+        Wallet wallet = debit(userId, amount, WalletTransactionType.CASHOUT, null);
+        payoutService.sendPayout(stripeAccountId, amount, "aud", wallet.getId());
+        return wallet;
+    }
+
+    private String getStripeAccountIdForUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        if (user.getStripeAccountId() == null) {
+            throw new StripeAccountNotLinkedException(userId);
+        }
+        if (!user.isStripePayoutsEnabled()) {
+            throw new StripeOnboardingIncompleteException(userId);
+        }
+        return user.getStripeAccountId();
     }
 
     private Wallet getWalletByUserId(Long userId) {
