@@ -20,9 +20,9 @@ stripe:
   secret-key: ${STRIPE_SECRET_KEY}
 
 pricing:
-  base-fee: 5.00
-  rate-per-km: 0.80
-  rate-per-kg: 1.50
+  base-fee: 2.00
+  rate-per-km: 1
+  rate-per-kg: 0.50
 
 google:
   maps:

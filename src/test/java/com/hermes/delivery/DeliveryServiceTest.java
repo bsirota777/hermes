@@ -11,6 +11,7 @@ import com.hermes.user.*;
 import com.hermes.user.exception.RecipientProfileNotFoundException;
 import com.hermes.user.exception.SenderProfileNotFoundException;
 import com.hermes.wallet.WalletService;
+import com.hermes.wallet.WalletTransactionType;
 import org.apache.camel.ProducerTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -203,5 +204,54 @@ class DeliveryServiceTest {
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).getStatus()).isEqualTo(DeliveryStatus.IN_TRANSIT);
+    }
+
+    @Test
+    void updateStatus_refundsFullFee_whenCancelledWithNoDriverAssigned() {
+        SenderProfile sender = buildSender(1L, 1L, "sender@example.com");
+        Delivery delivery = new Delivery();
+        delivery.setId(1L);
+        delivery.setSender(sender);
+        delivery.setStatus(DeliveryStatus.CREATED);
+        delivery.setDeliveryFee(new BigDecimal("25.00"));
+
+        when(deliveryRepository.findById(1L)).thenReturn(Optional.of(delivery));
+        when(deliveryRepository.save(any(Delivery.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        deliveryService.updateStatus(1L, DeliveryStatus.CANCELLED);
+
+        verify(walletService).credit(
+                eq(1L),
+                argThat(amount -> amount.compareTo(new BigDecimal("25.00")) == 0),
+                eq(WalletTransactionType.REFUND),
+                eq(delivery));
+    }
+
+    @Test
+    void updateStatus_refunds80Percent_whenCancelledWithDriverAssigned() {
+        SenderProfile sender = buildSender(1L, 1L, "sender@example.com");
+        DriverProfile driver = new DriverProfile();
+        driver.setId(1L);
+        driver.setUser(buildUser(2L, "driver@example.com"));
+
+        Delivery delivery = new Delivery();
+        delivery.setId(1L);
+        delivery.setSender(sender);
+        delivery.setDriver(driver);
+        delivery.setStatus(DeliveryStatus.ASSIGNED);
+        delivery.setDeliveryFee(new BigDecimal("25.00"));
+
+        when(deliveryRepository.findById(1L)).thenReturn(Optional.of(delivery));
+        when(deliveryRepository.save(any(Delivery.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        deliveryService.updateStatus(1L, DeliveryStatus.CANCELLED);
+
+        verify(walletService).credit(
+                eq(1L),
+                argThat(amount -> amount.compareTo(new BigDecimal("20.00")) == 0),
+                eq(WalletTransactionType.REFUND),
+                eq(delivery));
     }
 }

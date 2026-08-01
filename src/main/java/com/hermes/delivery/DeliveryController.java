@@ -83,4 +83,18 @@ public class DeliveryController {
 
         return DeliveryMapper.toDto(deliveryService.updateStatus(deliveryId, DeliveryStatus.DELIVERED));
     }
+
+    @PostMapping("/{deliveryId}/cancel")
+    public DeliveryDto cancel(@PathVariable Long deliveryId,
+                              @AuthenticationPrincipal UserDetails userDetails) {
+        User user = userService.loadUserByEmail(userDetails.getUsername());
+        Delivery delivery = deliveryService.getById(deliveryId);
+
+        if (!delivery.getSender().getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("Not the sender of this delivery");
+        }
+
+        return DeliveryMapper.toDto(deliveryService.updateStatus(deliveryId, DeliveryStatus.CANCELLED));
+    }
+
 }

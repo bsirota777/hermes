@@ -299,4 +299,46 @@ class DeliveryControllerTest {
 
         verify(deliveryService, never()).updateStatus(anyLong(), any());
     }
+
+    @Test
+    void cancel_shouldReturnCancelledDelivery_whenCallerIsSender() throws Exception {
+        User user = new User();
+        user.setId(3L);
+        user.setEmail("sender@example.com");
+
+        Delivery createdDelivery = buildDelivery(1L, DeliveryStatus.CREATED, null);
+        createdDelivery.getSender().getUser().setId(3L); // ensure sender matches caller
+
+        Delivery cancelledDelivery = buildDelivery(1L, DeliveryStatus.CANCELLED, null);
+        cancelledDelivery.getSender().getUser().setId(3L);
+
+        when(userService.loadUserByEmail("sender@example.com")).thenReturn(user);
+        when(deliveryService.getById(1L)).thenReturn(createdDelivery);
+        when(deliveryService.updateStatus(1L, DeliveryStatus.CANCELLED)).thenReturn(cancelledDelivery);
+
+        mockMvc.perform(post("/deliveries/1/cancel")
+                        .with(user(new org.springframework.security.core.userdetails.User(
+                                "sender@example.com", "password", List.of()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+    }
+
+    @Test
+    void cancel_shouldReturn403_whenCallerIsNotSender() throws Exception {
+        User caller = new User();
+        caller.setId(99L); // different from the delivery's actual sender
+
+        Delivery delivery = buildDelivery(1L, DeliveryStatus.CREATED, null);
+        // buildDelivery's sender has user id 3L by default — caller (99L) does not match
+
+        when(userService.loadUserByEmail("someone-else@example.com")).thenReturn(caller);
+        when(deliveryService.getById(1L)).thenReturn(delivery);
+
+        mockMvc.perform(post("/deliveries/1/cancel")
+                        .with(user(new org.springframework.security.core.userdetails.User(
+                                "someone-else@example.com", "password", List.of()))))
+                .andExpect(status().isForbidden());
+
+        verify(deliveryService, never()).updateStatus(anyLong(), any());
+    }
 }

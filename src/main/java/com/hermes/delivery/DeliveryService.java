@@ -158,25 +158,6 @@ public class DeliveryService {
         return saved;
     }
 
-/*    @Transactional
-    public DeliveryDto assignDriver(Long deliveryId, DriverProfile driver) {
-        Delivery delivery = deliveryRepository.findById(deliveryId)
-                .orElseThrow(() -> new DeliveryNotFoundException(deliveryId));
-
-        if (delivery.getStatus() != DeliveryStatus.CREATED) {
-            throw new InvalidStatusTransitionException(delivery.getStatus(), DeliveryStatus.ASSIGNED);
-        }
-        if (delivery.getDriver() != null) {
-            throw new DeliveryAlreadyAssignedException(deliveryId);
-        }
-
-        delivery.setDriver(driver);
-        delivery.setStatus(DeliveryStatus.ASSIGNED);
-
-        Delivery saved = deliveryRepository.save(delivery);
-        return DeliveryMapper.toDto(saved);
-    }*/
-
     private void payDriver(Delivery delivery) {
         BigDecimal driverCut = delivery.getDeliveryFee()
                 .multiply(delivery.getDriverCommissionRate());
@@ -186,7 +167,15 @@ public class DeliveryService {
     }
 
     private void refundSender(Delivery delivery) {
+        BigDecimal refundAmount;
+
+        if (delivery.getDriver() == null) {
+            refundAmount = delivery.getDeliveryFee();
+        } else {
+            refundAmount = delivery.getDeliveryFee().multiply(BigDecimal.valueOf(0.80));
+        }
+
         Long senderUserId = delivery.getSender().getUser().getId();
-        walletService.credit(senderUserId, delivery.getDeliveryFee(), WalletTransactionType.REFUND, delivery);
+        walletService.credit(senderUserId, refundAmount, WalletTransactionType.REFUND, delivery);
     }
 }
