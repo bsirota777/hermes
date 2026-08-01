@@ -14,10 +14,9 @@ import com.hermes.user.SenderProfile;
 import com.hermes.user.User;
 import org.junit.jupiter.api.Test;
 import static org.hamcrest.Matchers.hasSize;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
 
+import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -146,7 +145,7 @@ class DeliveryControllerTest {
 
         when(userService.loadUserByEmail("charlie@example.com")).thenReturn(driverUser);
         when(driverProfileRepository.findByUserId(300L)).thenReturn(Optional.of(driverProfile));
-        when(deliveryService.assignDriver(eq(1L), eq(driverProfile))).thenReturn(expectedDto);
+        when(deliveryService.reserve(eq(1L), eq(driverProfile))).thenReturn(assignedDelivery);
 
         mockMvc.perform(post("/deliveries/1/assign")
                 .with(user("charlie@example.com")))
@@ -165,7 +164,7 @@ class DeliveryControllerTest {
 
         when(userService.loadUserByEmail("charlie@example.com")).thenReturn(driverUser);
         when(driverProfileRepository.findByUserId(300L)).thenReturn(Optional.of(driverProfile));
-        when(deliveryService.assignDriver(eq(99L), eq(driverProfile)))
+        when(deliveryService.reserve(eq(99L), eq(driverProfile)))
                 .thenThrow(new DeliveryNotFoundException(99L));
 
         mockMvc.perform(post("/deliveries/99/assign")
@@ -183,7 +182,7 @@ class DeliveryControllerTest {
 
         when(userService.loadUserByEmail("charlie@example.com")).thenReturn(driverUser);
         when(driverProfileRepository.findByUserId(300L)).thenReturn(Optional.of(driverProfile));
-        when(deliveryService.assignDriver(eq(1L), eq(driverProfile)))
+        when(deliveryService.reserve(eq(1L), eq(driverProfile)))
                 .thenThrow(new DeliveryAlreadyAssignedException(1L));
 
         mockMvc.perform(post("/deliveries/1/assign")
@@ -201,7 +200,7 @@ class DeliveryControllerTest {
 
         when(userService.loadUserByEmail("charlie@example.com")).thenReturn(driverUser);
         when(driverProfileRepository.findByUserId(300L)).thenReturn(Optional.of(driverProfile));
-        when(deliveryService.assignDriver(eq(1L), eq(driverProfile)))
+        when(deliveryService.reserve(eq(1L), eq(driverProfile)))
                 .thenThrow(new InvalidStatusTransitionException(DeliveryStatus.IN_TRANSIT, DeliveryStatus.ASSIGNED));
 
         mockMvc.perform(post("/deliveries/1/assign")
@@ -226,5 +225,78 @@ class DeliveryControllerTest {
     void assignDriver_returns403_whenUnauthenticated() throws Exception {
         mockMvc.perform(post("/deliveries/1/assign"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void startTransit_shouldReturnUpdatedDelivery_whenCallerIsAssignedDriver() throws Exception {
+        User user = new User();
+        user.setId(1L);
+        user.setEmail("driver@example.com");
+
+        DriverProfile driverProfile = new DriverProfile();
+        driverProfile.setUser(user);
+
+        Delivery assignedDelivery = buildDelivery(1L, DeliveryStatus.ASSIGNED, driverProfile);
+
+        Delivery inTransitDelivery = buildDelivery(1L, DeliveryStatus.IN_TRANSIT, driverProfile);
+
+        when(userService.loadUserByEmail("driver@example.com")).thenReturn(user);
+        when(deliveryService.getById(1L)).thenReturn(assignedDelivery);
+        when(deliveryService.updateStatus(1L, DeliveryStatus.IN_TRANSIT)).thenReturn(inTransitDelivery);
+
+        mockMvc.perform(post("/deliveries/1/start")
+                        .with(user(new org.springframework.security.core.userdetails.User(
+                                "driver@example.com", "password", List.of()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("IN_TRANSIT"));
+    }
+
+    private Delivery buildDelivery(Long id, DeliveryStatus status, DriverProfile driver) {
+        User senderUser = new User();
+        senderUser.setId(3L);
+        senderUser.setName("Sender Name");
+        SenderProfile sender = new SenderProfile();
+        sender.setUser(senderUser);
+
+        User recipientUser = new User();
+        recipientUser.setId(4L);
+        recipientUser.setName("Recipient Name");
+        RecipientProfile recipient = new RecipientProfile();
+        recipient.setUser(recipientUser);
+
+        Delivery delivery = new Delivery();
+        delivery.setId(id);
+        delivery.setSender(sender);
+        delivery.setRecipient(recipient);
+        delivery.setDriver(driver);
+        delivery.setStatus(status);
+        return delivery;
+    }
+
+    @Test
+    void markDelivered_shouldReturn403_whenCallerIsNotAssignedDriver() throws Exception {
+        User caller = new User();
+        caller.setId(2L); // different from the assigned driver's user id
+
+        User assignedDriverUser = new User();
+        assignedDriverUser.setId(1L);
+
+        DriverProfile assignedDriver = new DriverProfile();
+        assignedDriver.setUser(assignedDriverUser);
+
+        Delivery delivery = new Delivery();
+        delivery.setId(1L);
+        delivery.setDriver(assignedDriver);
+        delivery.setStatus(DeliveryStatus.IN_TRANSIT);
+
+        when(userService.loadUserByEmail("someone-else@example.com")).thenReturn(caller);
+        when(deliveryService.getById(1L)).thenReturn(delivery);
+
+        mockMvc.perform(post("/deliveries/1/deliver")
+                        .with(user(new org.springframework.security.core.userdetails.User(
+                                "someone-else@example.com", "password", List.of()))))
+                .andExpect(status().isForbidden());
+
+        verify(deliveryService, never()).updateStatus(anyLong(), any());
     }
 }

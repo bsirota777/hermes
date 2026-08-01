@@ -53,6 +53,11 @@ public class DeliveryService {
         this.pricingService = pricingService;
     }
 
+    public Delivery getById(Long deliveryId) {
+        return deliveryRepository.findById(deliveryId)
+                .orElseThrow(() -> new DeliveryNotFoundException(deliveryId));
+    }
+
     @Transactional
     public Delivery createDeliveryRequest(DeliveryRequestDto request) {
         SenderProfile sender = senderProfileRepository.findById(request.senderProfileId())
@@ -153,7 +158,7 @@ public class DeliveryService {
         return saved;
     }
 
-    @Transactional
+/*    @Transactional
     public DeliveryDto assignDriver(Long deliveryId, DriverProfile driver) {
         Delivery delivery = deliveryRepository.findById(deliveryId)
                 .orElseThrow(() -> new DeliveryNotFoundException(deliveryId));
@@ -170,7 +175,7 @@ public class DeliveryService {
 
         Delivery saved = deliveryRepository.save(delivery);
         return DeliveryMapper.toDto(saved);
-    }
+    }*/
 
     private void payDriver(Delivery delivery) {
         BigDecimal driverCut = delivery.getDeliveryFee()
