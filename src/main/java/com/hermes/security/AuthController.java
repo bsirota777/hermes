@@ -1,6 +1,9 @@
-package com.hermes.user;
+package com.hermes.security;
 
-import com.hermes.security.JwtService;
+import com.hermes.user.User;
+import com.hermes.user.UserRepository;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,16 +21,15 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public String login(@RequestBody LoginRequest request) {
-        User user = userRepository.findByName(request.name())
-                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+        User user = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw new RuntimeException("Invalid credentials");
+            throw new BadCredentialsException("Invalid email or password");
         }
 
-        return jwtService.generateToken(user.getEmail());
+        String token = jwtService.generateToken(user.getEmail());
+        return ResponseEntity.ok(new LoginResponse(token));
     }
-
-    public record LoginRequest(String name, String password) {}
 }
