@@ -1,6 +1,9 @@
-package com.hermes.delivery;
+package com.hermes.parcel;
 
 import com.hermes.TestcontainersConfig;
+import com.hermes.delivery.Delivery;
+import com.hermes.delivery.DeliveryRepository;
+import com.hermes.delivery.DeliveryStatus;
 import com.hermes.user.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

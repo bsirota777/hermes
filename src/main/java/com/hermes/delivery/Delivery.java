@@ -1,5 +1,6 @@
 package com.hermes.delivery;
 
+import com.hermes.parcel.Parcel;
 import com.hermes.user.DriverProfile;
 import com.hermes.user.RecipientProfile;
 import com.hermes.user.SenderProfile;

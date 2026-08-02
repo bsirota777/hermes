@@ -1,4 +1,4 @@
-package com.hermes.delivery;
+package com.hermes.parcel;
 
 import com.hermes.delivery.dto.CreateParcelRequestDto;
 import com.hermes.delivery.dto.ParcelResponseDto;

@@ -3,6 +3,7 @@ package com.hermes.delivery;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.repository.Query;
 
 public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
 
@@ -20,4 +21,11 @@ public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
 
     // Find unassigned deliveries (no driver yet) - useful for a driver "claim job" flow
     Page<Delivery> findByDriverIsNull(Pageable pageable);
+
+    @Query("SELECT d FROM Delivery d " +
+            "JOIN FETCH d.sender s JOIN FETCH s.user " +
+            "JOIN FETCH d.recipient r JOIN FETCH r.user " +
+            "LEFT JOIN FETCH d.driver dr LEFT JOIN FETCH dr.user " +
+            "ORDER BY d.createdAt DESC")
+    Page<Delivery> findAllWithDetails(Pageable pageable);
 }

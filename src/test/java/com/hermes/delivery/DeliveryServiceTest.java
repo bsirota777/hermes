@@ -4,6 +4,8 @@ import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.dto.DeliveryRequestDto;
 import com.hermes.delivery.dto.ParcelDto;
 import com.hermes.delivery.exception.InvalidDeliveryException;
+import com.hermes.parcel.Parcel;
+import com.hermes.parcel.ParcelRepository;
 import com.hermes.pricing.PricingService;
 import com.hermes.geocoding.Coordinates;
 import com.hermes.geocoding.GeocodingService;

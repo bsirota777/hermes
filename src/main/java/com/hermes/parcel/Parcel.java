@@ -1,5 +1,6 @@
-package com.hermes.delivery;
+package com.hermes.parcel;
 
+import com.hermes.delivery.Delivery;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;

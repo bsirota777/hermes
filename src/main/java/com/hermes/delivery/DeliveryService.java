@@ -7,6 +7,8 @@ import com.hermes.delivery.dto.ParcelDto;
 import com.hermes.delivery.exception.*;
 import com.hermes.geocoding.Coordinates;
 import com.hermes.geocoding.GeocodingService;
+import com.hermes.parcel.Parcel;
+import com.hermes.parcel.ParcelRepository;
 import com.hermes.pricing.PricingService;
 import com.hermes.user.*;
 import com.hermes.user.exception.RecipientProfileNotFoundException;
