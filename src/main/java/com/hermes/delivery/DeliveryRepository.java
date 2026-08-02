@@ -28,4 +28,7 @@ public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
             "LEFT JOIN FETCH d.driver dr LEFT JOIN FETCH dr.user " +
             "ORDER BY d.createdAt DESC")
     Page<Delivery> findAllWithDetails(Pageable pageable);
+
+    long countBySender_User_Id(Long userId);
+    long countByRecipient_User_Id(Long userId);
 }

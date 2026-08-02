@@ -8,5 +8,7 @@ public record AdminUserDto(
         String email,
         String role,
         boolean banned,
+        long sentCount,
+        long receivedCount,
         Instant createdAt
 ) {}

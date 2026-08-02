@@ -7,9 +7,15 @@ import com.hermes.parcel.ParcelRepository;
 import com.hermes.user.User;
 import com.hermes.user.UserRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -31,12 +37,18 @@ public class AdminController {
 
     @GetMapping("/users")
     public Page<AdminUserDto> getUsers(Pageable pageable) {
-        return userRepository.findAll(pageable).map(this::toDto);
+        Pageable sorted = pageable.getSort().isSorted()
+                ? pageable
+                : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("id"));
+        return userRepository.findAll(sorted).map(this::toDto);
     }
 
     @GetMapping("/deliveries")
     public Page<AdminDeliveryDto> getDeliveries(Pageable pageable) {
-        return deliveryRepository.findAllWithDetails(pageable).map(this::toDto);
+        Pageable sorted = pageable.getSort().isSorted()
+                ? pageable
+                : PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by("id"));
+        return deliveryRepository.findAllWithDetails(sorted).map(this::toDto);
     }
 
     @GetMapping("/deliveries/{id}/parcels")
@@ -47,10 +59,31 @@ public class AdminController {
         return ResponseEntity.ok(parcels);
     }
 
+    @PatchMapping("/users/{id}/ban")
+    public ResponseEntity<AdminUserDto> setBanned(
+            @PathVariable Long id,
+            @RequestBody BanRequest request,
+            @AuthenticationPrincipal UserDetails currentUser) {
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (request.banned() && user.getEmail().equals(currentUser.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Admins cannot ban themselves");
+        }
+
+        user.setBanned(request.banned());
+        User saved = userRepository.save(user);
+        return ResponseEntity.ok(toDto(saved));
+    }
+
     private AdminUserDto toDto(User user) {
+        long sentCount = deliveryRepository.countBySender_User_Id(user.getId());
+        long receivedCount = deliveryRepository.countByRecipient_User_Id(user.getId());
         return new AdminUserDto(
                 user.getId(), user.getName(), user.getEmail(),
-                user.getRole().name(), user.isBanned(), user.getCreatedAt());
+                user.getRole().name(), user.isBanned(),
+                sentCount, receivedCount, user.getCreatedAt());
     }
 
     private AdminDeliveryDto toDto(Delivery d) {
