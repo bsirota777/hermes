@@ -28,6 +28,11 @@ google:
   maps:
     api-key: ${GOOGLE_MAPS_API_KEY}
 
+admin:
+  seed:
+    email: ${ADMIN_SEED_EMAIL:admin@hermes.local}
+    password: ${ADMIN_SEED_PASSWORD:}
+
 #azure:
 #  cosmos:
 #    uri: https://localhost:8081

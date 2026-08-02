@@ -29,7 +29,11 @@ public class AuthController {
             throw new BadCredentialsException("Invalid email or password");
         }
 
-        String token = jwtService.generateToken(user.getEmail());
+        if (user.isBanned()) {
+            throw new BadCredentialsException("This account has been banned");
+        }
+
+        String token = jwtService.generateToken(user.getEmail(), user.getRole().name());
         return ResponseEntity.ok(new LoginResponse(token));
     }
 }
