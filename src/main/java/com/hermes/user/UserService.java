@@ -1,10 +1,13 @@
 package com.hermes.user;
 
+import com.hermes.user.dto.*;
+import com.hermes.user.exception.DriverProfileAlreadyExistsException;
 import com.hermes.user.exception.EmailAlreadyExistsException;
 import com.hermes.wallet.Wallet;
 import com.hermes.wallet.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -22,8 +25,9 @@ public class UserService implements UserDetailsService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final WalletRepository walletRepository;
+    private final DriverProfileRepository driverProfileRepository;
 
-    @Transactional
+    /*@Transactional
     public User createUser(User user) {
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new EmailAlreadyExistsException(user.getEmail());
@@ -36,6 +40,21 @@ public class UserService implements UserDetailsService {
         walletRepository.save(wallet);
 
         return savedUser;
+    }*/
+
+    @Transactional
+    public AccountDto registerUser(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.email())) {
+            throw new EmailAlreadyExistsException(request.email());
+        }
+
+        User user = new User(request.name(), request.email(), passwordEncoder.encode(request.password()));
+        User savedUser = userRepository.save(user);
+
+        Wallet wallet = new Wallet(savedUser);
+        walletRepository.save(wallet);
+
+        return getAccountDetails(savedUser);
     }
 
     public List<User> searchUsers(String name) {
@@ -81,4 +100,35 @@ public class UserService implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found for this email: " + email));
     }
 
+    public AccountDto getAccountDetails(User user) {
+        return new AccountDto(user.getId(), user.getName(), user.getEmail(), user.getRole(), user.getCreatedAt());
+    }
+
+    @Transactional
+    public void changePassword(User user, ChangePasswordRequest request) {
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new BadCredentialsException("Current password is incorrect");
+        }
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public DriverProfileDto registerAsDriver(User user, DriverRegistrationRequest request) {
+        if (driverProfileRepository.existsByUserId(user.getId())) {
+            throw new DriverProfileAlreadyExistsException(user.getId());
+        }
+
+        DriverProfile profile = new DriverProfile();
+        profile.setUser(user);
+        profile.setAddress(request.address());
+        profile.setPhoneNumber(request.phoneNumber());
+        profile.setLicenceNumber(request.licenceNumber());
+        profile.setVehiclePlate(request.vehiclePlate());
+
+        DriverProfile saved = driverProfileRepository.save(profile);
+
+        return new DriverProfileDto(saved.getId(), saved.getAddress(), saved.getPhoneNumber(),
+                saved.getLicenceNumber(), saved.getVehiclePlate());
+    }
 }

@@ -1,10 +1,13 @@
 package com.hermes.user;
 
+import com.hermes.user.dto.*;
 import jakarta.validation.Valid;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -22,9 +25,9 @@ public class UserController {
 
     // CREATE
     @PostMapping
-    public ResponseEntity<User> createUser(@Valid @RequestBody User user) {
-        User created = userService.createUser(user);
-        URI location = URI.create("/users/" + created.getId());
+    public ResponseEntity<AccountDto> createUser(@Valid @RequestBody RegisterRequest request) {
+        AccountDto created = userService.registerUser(request);
+        URI location = URI.create("/users/" + created.id());
         return ResponseEntity.created(location).body(created);
     }
 
@@ -65,5 +68,29 @@ public class UserController {
                 System.out.println("UserService bean: " + name);
             }
         };
+    }
+
+    @GetMapping("/me")
+    public AccountDto getMyAccount(@AuthenticationPrincipal UserDetails currentUser) {
+        User user = userService.loadUserByEmail(currentUser.getUsername());
+        return userService.getAccountDetails(user);
+    }
+
+    @PutMapping("/me/password")
+    public ResponseEntity<Void> changeMyPassword(
+            @AuthenticationPrincipal UserDetails currentUser,
+            @RequestBody ChangePasswordRequest request) {
+        User user = userService.loadUserByEmail(currentUser.getUsername());
+        userService.changePassword(user, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/me/driver-profile")
+    public ResponseEntity<DriverProfileDto> registerAsDriver(
+            @AuthenticationPrincipal UserDetails currentUser,
+            @RequestBody DriverRegistrationRequest request) {
+        User user = userService.loadUserByEmail(currentUser.getUsername());
+        DriverProfileDto profile = userService.registerAsDriver(user, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(profile);
     }
 }

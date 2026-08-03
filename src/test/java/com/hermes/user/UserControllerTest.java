@@ -2,6 +2,7 @@ package com.hermes.user;
 
 import com.hermes.TestcontainersConfig;
 import com.hermes.security.JwtService;
+import com.hermes.user.dto.AccountDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -10,6 +11,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.Instant;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -35,13 +38,13 @@ class UserControllerTest {
 
     @Test
     void createUser_returns201_withLocationHeader() throws Exception {
-        when(userService.createUser(any(User.class)))
-                .thenReturn(new User( 1L,"jdoe", "jdoe@example.com", "secret123"));
+        when(userService.registerUser(any()))
+                .thenReturn(new AccountDto(1L, "jdoe", "jdoe@example.com", Role.USER, Instant.now()));
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                    {"id": 1, "name":"jdoe","email":"jdoe@example.com","password":"secret123"}
+                    {"name":"jdoe","email":"jdoe@example.com","password":"secret123"}
                     """))
                 .andExpect(status().isCreated())
                 .andExpect(header().exists("Location"))

@@ -149,6 +149,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
     }
 
+    @ExceptionHandler(DriverProfileAlreadyExistsException.class)
+    public ResponseEntity<String> handleDriverProfileAlreadyExists(DriverProfileAlreadyExistsException ex) {
+        log.warn(ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+    }
+
     // Catch All
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleUnexpected(Exception ex) {

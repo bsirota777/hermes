@@ -1,6 +1,8 @@
 package com.hermes.user;
 
 import com.hermes.TestcontainersConfig;
+import com.hermes.user.dto.AccountDto;
+import com.hermes.user.dto.RegisterRequest;
 import com.hermes.user.exception.EmailAlreadyExistsException;
 import com.hermes.wallet.Wallet;
 import com.hermes.wallet.WalletRepository;
@@ -43,10 +45,11 @@ class UserServiceTest {
         when(passwordEncoder.encode("secret")).thenReturn("hashed");
         when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        User result = userService.createUser(new User("jdoe", "dup@example.com", "secret"));
+        AccountDto result = userService.registerUser(new RegisterRequest("jdoe", "dup@example.com", "secret"));
 
         verify(walletRepository).save(any(Wallet.class));
-        assertThat(result.getPassword()).isEqualTo("hashed");
+        assertThat(result.email()).isEqualTo("dup@example.com");
+        assertThat(result.name()).isEqualTo("jdoe");
         verify(userRepository).save(any(User.class));
     }
 
@@ -55,7 +58,7 @@ class UserServiceTest {
         when(userRepository.existsByEmail("dup@example.com")).thenReturn(true);
 
         assertThrows(EmailAlreadyExistsException.class, () ->
-                userService.createUser(new User("jdoe", "dup@example.com", "secret")));
+                userService.registerUser(new RegisterRequest("jdoe", "dup@example.com", "secret")));
     }
 
     @Test
