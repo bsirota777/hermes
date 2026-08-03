@@ -10,8 +10,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+
+import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -51,5 +56,50 @@ class UserServiceTest {
 
         assertThrows(EmailAlreadyExistsException.class, () ->
                 userService.createUser(new User("jdoe", "dup@example.com", "secret")));
+    }
+
+    @Test
+    void loadUserByUsername_forRegularUser_mapsToRoleUserAuthority() {
+        User user = new User("jdoe", "driver@example.com", "hashed-password");
+        user.setRole(Role.USER);
+
+        when(userRepository.findByEmail("driver@example.com")).thenReturn(Optional.of(user));
+
+        UserDetails result = userService.loadUserByUsername("driver@example.com");
+
+        assertThat(result.getUsername()).isEqualTo("driver@example.com");
+        assertThat(result.getPassword()).isEqualTo("hashed-password");
+
+        List<String> authorities = result.getAuthorities().stream().map(Object::toString).toList();
+        assertThat(authorities).isEqualTo(List.of("ROLE_USER"));
+    }
+
+    @Test
+    void loadUserByUsername_forAdminUser_mapsToRoleAdminAuthority() {
+        User user = new User("Admin", "admin@example.com", "hashed-password");
+        user.setRole(Role.ADMIN);
+
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
+
+        UserDetails result = userService.loadUserByUsername("admin@example.com");
+
+        List<String> authorities = result.getAuthorities().stream().map(Object::toString).toList();
+        assertThat(authorities).isEqualTo(List.of("ROLE_ADMIN"));
+    }
+
+    @Test
+    void loadUserByUsername_withUnknownEmail_throwsUsernameNotFoundException() {
+        when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+
+        assertThrows(UsernameNotFoundException.class, () ->
+                userService.loadUserByUsername("nobody@example.com"));
+    }
+
+    @Test
+    void loadUserByEmail_withUnknownEmail_throwsUsernameNotFoundException() {
+        when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+
+        assertThrows(UsernameNotFoundException.class, () ->
+                userService.loadUserByEmail("nobody@example.com"));
     }
 }

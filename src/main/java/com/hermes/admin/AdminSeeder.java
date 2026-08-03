@@ -1,4 +1,4 @@
-package com.hermes.security;
+package com.hermes.admin;
 
 import com.hermes.user.Role;
 import com.hermes.user.User;
