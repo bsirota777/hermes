@@ -3,7 +3,7 @@ package com.hermes.parcel;
 import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.Delivery;
 import com.hermes.delivery.dto.CreateParcelRequestDto;
-import com.hermes.delivery.exception.ParcelNotFoundException;
+import com.hermes.parcel.exception.ParcelNotFoundException;
 import com.hermes.security.JwtAuthFilter;
 import org.springframework.context.annotation.Import;
 import tools.jackson.databind.json.JsonMapper;
