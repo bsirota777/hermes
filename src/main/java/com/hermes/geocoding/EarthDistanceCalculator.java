@@ -1,4 +1,4 @@
-package com.hermes.pricing;
+package com.hermes.geocoding;
 
 import java.math.BigDecimal;
 

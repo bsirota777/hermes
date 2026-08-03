@@ -1,6 +1,6 @@
-package com.hermes.pricing;
+package com.hermes.geocoding;
 
-import com.hermes.geocoding.Coordinates;
+import com.hermes.pricing.RoutingService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
