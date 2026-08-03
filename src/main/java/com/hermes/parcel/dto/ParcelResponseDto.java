@@ -1,4 +1,4 @@
-package com.hermes.delivery.dto;
+package com.hermes.parcel.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

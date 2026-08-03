@@ -1,7 +1,7 @@
 package com.hermes.delivery.mapper;
 
 import com.hermes.parcel.Parcel;
-import com.hermes.delivery.dto.ParcelResponseDto;
+import com.hermes.parcel.dto.ParcelResponseDto;
 
 public class ParcelMapper {
 

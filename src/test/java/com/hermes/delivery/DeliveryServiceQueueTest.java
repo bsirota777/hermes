@@ -2,7 +2,7 @@ package com.hermes.delivery;
 
 import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.dto.DeliveryRequestDto;
-import com.hermes.delivery.dto.ParcelDto;
+import com.hermes.parcel.dto.ParcelDto;
 import com.hermes.pricing.PricingService;
 import com.hermes.delivery.route.DeliveryRequestQueueHandler;
 import com.hermes.geocoding.Coordinates;

@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.hermes.delivery.DeliveryStatus;
+import com.hermes.parcel.dto.ParcelResponseDto;
 
 public record DeliveryResponseDto(
         Long id,

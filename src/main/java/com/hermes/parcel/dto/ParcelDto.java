@@ -1,4 +1,4 @@
-package com.hermes.delivery.dto;
+package com.hermes.parcel.dto;
 
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;

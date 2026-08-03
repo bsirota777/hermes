@@ -2,7 +2,9 @@ package com.hermes.user;
 
 import com.hermes.TestcontainersConfig;
 import com.hermes.user.dto.AccountDto;
+import com.hermes.user.dto.ChangePasswordRequest;
 import com.hermes.user.dto.RegisterRequest;
+import com.hermes.user.dto.UpdateAddressRequest;
 import com.hermes.user.exception.EmailAlreadyExistsException;
 import com.hermes.wallet.Wallet;
 import com.hermes.wallet.WalletRepository;
@@ -12,6 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,6 +26,7 @@ import java.util.Optional;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -37,6 +41,12 @@ class UserServiceTest {
     PasswordEncoder passwordEncoder;
     @Mock
     private WalletRepository walletRepository;
+    @Mock
+    private DriverProfileRepository driverProfileRepository;
+    @Mock
+    private SenderProfileRepository senderProfileRepository;
+    @Mock
+    private RecipientProfileRepository recipientProfileRepository;
     @InjectMocks
     UserService userService;
 
@@ -104,5 +114,96 @@ class UserServiceTest {
 
         assertThrows(UsernameNotFoundException.class, () ->
                 userService.loadUserByEmail("nobody@example.com"));
+    }
+
+    // ---------- updateAddress ----------
+
+    @Test
+    void updateAddress_updatesAllThreeProfiles_whenAllExist() {
+        User user = new User("jdoe", "jdoe@example.com", "hashed");
+        user.setId(1L);
+
+        SenderProfile sender = new SenderProfile();
+        RecipientProfile recipient = new RecipientProfile();
+        DriverProfile driver = new DriverProfile();
+
+        when(senderProfileRepository.findByUserId(1L)).thenReturn(Optional.of(sender));
+        when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.of(recipient));
+        when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.of(driver));
+
+        userService.updateAddress(user, new UpdateAddressRequest("1 New St"));
+
+        assertThat(sender.getAddress()).isEqualTo("1 New St");
+        assertThat(recipient.getAddress()).isEqualTo("1 New St");
+        assertThat(driver.getAddress()).isEqualTo("1 New St");
+        verify(senderProfileRepository).save(sender);
+        verify(recipientProfileRepository).save(recipient);
+        verify(driverProfileRepository).save(driver);
+    }
+
+    @Test
+    void updateAddress_updatesOnlyExistingProfile_whenOthersMissing() {
+        User user = new User("jdoe", "jdoe@example.com", "hashed");
+        user.setId(1L);
+
+        DriverProfile driver = new DriverProfile();
+
+        when(senderProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.of(driver));
+
+        userService.updateAddress(user, new UpdateAddressRequest("1 New St"));
+
+        assertThat(driver.getAddress()).isEqualTo("1 New St");
+        verify(driverProfileRepository).save(driver);
+        verify(senderProfileRepository, never()).save(any());
+        verify(recipientProfileRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAddress_doesNothing_whenNoProfilesExist() {
+        User user = new User("jdoe", "jdoe@example.com", "hashed");
+        user.setId(1L);
+
+        when(senderProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        userService.updateAddress(user, new UpdateAddressRequest("1 New St"));
+
+        verify(senderProfileRepository, never()).save(any());
+        verify(recipientProfileRepository, never()).save(any());
+        verify(driverProfileRepository, never()).save(any());
+    }
+
+    // ---------- changePassword ----------
+
+    @Test
+    void changePassword_updatesToNewHashedPassword_whenCurrentPasswordCorrect() {
+        User user = new User("jdoe", "jdoe@example.com", "old-hashed");
+        user.setId(1L);
+
+        when(passwordEncoder.matches("old-plain", "old-hashed")).thenReturn(true);
+        when(passwordEncoder.encode("new-plain")).thenReturn("new-hashed");
+
+        userService.changePassword(user, new ChangePasswordRequest("old-plain", "new-plain"));
+
+        assertThat(user.getPassword()).isEqualTo("new-hashed");
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void changePassword_throwsBadCredentials_whenCurrentPasswordIncorrect() {
+        User user = new User("jdoe", "jdoe@example.com", "old-hashed");
+        user.setId(1L);
+
+        when(passwordEncoder.matches("wrong-plain", "old-hashed")).thenReturn(false);
+
+        assertThrows(BadCredentialsException.class, () ->
+                userService.changePassword(user, new ChangePasswordRequest("wrong-plain", "new-plain")));
+
+        assertThat(user.getPassword()).isEqualTo("old-hashed");
+        verify(userRepository, never()).save(any());
+        verify(passwordEncoder, never()).encode(any());
     }
 }

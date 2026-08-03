@@ -1,7 +1,7 @@
 package com.hermes.parcel;
 
 import com.hermes.delivery.dto.CreateParcelRequestDto;
-import com.hermes.delivery.dto.ParcelResponseDto;
+import com.hermes.parcel.dto.ParcelResponseDto;
 import com.hermes.delivery.mapper.ParcelMapper;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

@@ -26,21 +26,8 @@ public class UserService implements UserDetailsService {
     private final PasswordEncoder passwordEncoder;
     private final WalletRepository walletRepository;
     private final DriverProfileRepository driverProfileRepository;
-
-    /*@Transactional
-    public User createUser(User user) {
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new EmailAlreadyExistsException(user.getEmail());
-        }
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-
-        User savedUser = userRepository.save(user);
-
-        Wallet wallet = new Wallet(savedUser);
-        walletRepository.save(wallet);
-
-        return savedUser;
-    }*/
+    private final SenderProfileRepository senderProfileRepository;
+    private final RecipientProfileRepository recipientProfileRepository;
 
     @Transactional
     public AccountDto registerUser(RegisterRequest request) {
@@ -130,5 +117,15 @@ public class UserService implements UserDetailsService {
 
         return new DriverProfileDto(saved.getId(), saved.getAddress(), saved.getPhoneNumber(),
                 saved.getLicenceNumber(), saved.getVehiclePlate());
+    }
+
+    @Transactional
+    public void updateAddress(User user, UpdateAddressRequest request) {
+        senderProfileRepository.findByUserId(user.getId())
+                .ifPresent(p -> { p.setAddress(request.address()); senderProfileRepository.save(p); });
+        recipientProfileRepository.findByUserId(user.getId())
+                .ifPresent(p -> { p.setAddress(request.address()); recipientProfileRepository.save(p); });
+        driverProfileRepository.findByUserId(user.getId())
+                .ifPresent(p -> { p.setAddress(request.address()); driverProfileRepository.save(p); });
     }
 }

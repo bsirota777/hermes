@@ -93,4 +93,13 @@ public class UserController {
         DriverProfileDto profile = userService.registerAsDriver(user, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(profile);
     }
+
+    @PatchMapping("/me/address")
+    public ResponseEntity<Void> updateMyAddress(
+            @AuthenticationPrincipal UserDetails currentUser,
+            @Valid @RequestBody UpdateAddressRequest request) {
+        User user = userService.loadUserByEmail(currentUser.getUsername());
+        userService.updateAddress(user, request);
+        return ResponseEntity.noContent().build();
+    }
 }

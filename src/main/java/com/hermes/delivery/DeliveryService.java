@@ -1,9 +1,13 @@
 package com.hermes.delivery;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
+import java.util.List;
 
+import com.hermes.delivery.dto.CreateDeliveryRequest;
 import com.hermes.delivery.dto.DeliveryRequestDto;
-import com.hermes.delivery.dto.ParcelDto;
+import com.hermes.geocoding.EarthDistanceCalculator;
+import com.hermes.parcel.dto.ParcelDto;
 import com.hermes.delivery.exception.*;
 import com.hermes.geocoding.Coordinates;
 import com.hermes.geocoding.GeocodingService;
@@ -13,6 +17,7 @@ import com.hermes.pricing.PricingService;
 import com.hermes.user.*;
 import com.hermes.user.exception.RecipientProfileNotFoundException;
 import com.hermes.user.exception.SenderProfileNotFoundException;
+import com.hermes.user.exception.UserNotFoundException;
 import com.hermes.wallet.WalletService;
 import com.hermes.wallet.WalletTransactionType;
 import jakarta.transaction.Transactional;
@@ -20,6 +25,8 @@ import org.apache.camel.ProducerTemplate;
 import org.jspecify.annotations.NonNull;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +41,7 @@ public class DeliveryService {
     private final WalletService walletService;
     private final GeocodingService geocodingService;
     private final PricingService pricingService; // once built
+    private final UserRepository userRepository;
 
     private static final BigDecimal DEFAULT_DRIVER_COMMISSION_RATE = new BigDecimal("0.80");
 
@@ -41,7 +49,8 @@ public class DeliveryService {
                            SenderProfileRepository senderProfileRepository,
                            RecipientProfileRepository recipientProfileRepository,
                            ParcelRepository parcelRepository, WalletService walletService,
-                           GeocodingService geocodingService, PricingService pricingService) {
+                           GeocodingService geocodingService, PricingService pricingService,
+                           UserRepository userRepository) {
         this.deliveryRepository = deliveryRepository;
         this.producerTemplate = producerTemplate;
         this.senderProfileRepository = senderProfileRepository;
@@ -50,11 +59,42 @@ public class DeliveryService {
         this.walletService = walletService;
         this.geocodingService = geocodingService;
         this.pricingService = pricingService;
+        this.userRepository = userRepository;
     }
 
     public Delivery getById(Long deliveryId) {
         return deliveryRepository.findById(deliveryId)
                 .orElseThrow(() -> new DeliveryNotFoundException(deliveryId));
+    }
+
+    @Transactional
+    public Delivery createDelivery(User senderUser, CreateDeliveryRequest request) {
+        User recipientUser = userRepository.findByEmail(request.recipientEmail())
+                .orElseThrow(() -> new UserNotFoundException(request.recipientEmail()));
+
+        SenderProfile senderProfile = senderProfileRepository.findByUserId(senderUser.getId())
+                .orElseGet(() -> {
+                    SenderProfile p = new SenderProfile();
+                    p.setUser(senderUser);
+                    p.setAddress(request.pickUpAddress());
+                    p.setPhoneNumber(request.senderPhoneNumber());
+                    return senderProfileRepository.save(p);
+                });
+
+        RecipientProfile recipientProfile = recipientProfileRepository.findByUserId(recipientUser.getId())
+                .orElseGet(() -> {
+                    RecipientProfile p = new RecipientProfile();
+                    p.setUser(recipientUser);
+                    p.setAddress(request.dropOffAddress());
+                    p.setPhoneNumber(request.recipientPhoneNumber());
+                    return recipientProfileRepository.save(p);
+                });
+
+        DeliveryRequestDto dto = new DeliveryRequestDto(
+                senderProfile.getId(), recipientProfile.getId(),
+                request.pickUpAddress(), request.dropOffAddress(), request.parcels());
+
+        return createDeliveryRequest(dto);
     }
 
     @Transactional
@@ -75,6 +115,10 @@ public class DeliveryService {
         delivery.setRecipient(recipient);
         delivery.setPickUpAddress(request.pickUpAddress());
         delivery.setDropOffAddress(request.dropOffAddress());
+        delivery.setPickUpLatitude(pickUp.latitude());
+        delivery.setPickUpLongitude(pickUp.longitude());
+        delivery.setDropOffLatitude(dropOff.latitude());
+        delivery.setDropOffLongitude(dropOff.longitude());
         delivery.setDeliveryFee(deliveryFee);
         delivery.setDriverCommissionRate(DEFAULT_DRIVER_COMMISSION_RATE);
         delivery.setStatus(DeliveryStatus.CREATED);
@@ -110,8 +154,49 @@ public class DeliveryService {
             throw new InvalidDeliveryException("Sender and recipient cannot be the same user.");
         }
     }
+
+    public Page<Delivery> getSentDeliveries(Long userId, Pageable pageable) {
+        return senderProfileRepository.findByUserId(userId)
+                .map(p -> deliveryRepository.findBySenderId(p.getId(), pageable))
+                .orElse(Page.empty(pageable));
+    }
+
+    public Page<Delivery> getReceivedDeliveries(Long userId, Pageable pageable) {
+        return recipientProfileRepository.findByUserId(userId)
+                .map(p -> deliveryRepository.findByRecipientId(p.getId(), pageable))
+                .orElse(Page.empty(pageable));
+    }
+
+    public Page<Delivery> getDrivenDeliveries(Long driverProfileId, Pageable pageable) {
+        return deliveryRepository.findByDriverId(driverProfileId, pageable);
+    }
+
     public Page<Delivery> getInTransitDeliveries(Pageable pageable) {
         return deliveryRepository.findByStatus(DeliveryStatus.IN_TRANSIT, pageable);
+    }
+
+    public Page<Delivery> getQueueForDriver(DriverProfile driver, int page, int size) {
+        List<Delivery> unassigned = deliveryRepository.findByDriverIsNull(Pageable.unpaged()).getContent();
+        Coordinates driverCoords = geocodingService.geocode(driver.getAddress());
+
+        List<Delivery> sorted = unassigned.stream()
+                .sorted(Comparator.comparingDouble(d -> distanceFromDriver(driverCoords, d)))
+                .toList();
+
+        int from = Math.min(page * size, sorted.size());
+        int to = Math.min(from + size, sorted.size());
+
+        return new PageImpl<>(sorted.subList(from, to), PageRequest.of(page, size), sorted.size());
+    }
+
+    private double distanceFromDriver(Coordinates driverCoords, Delivery delivery) {
+        if (delivery.getPickUpLatitude() == null || delivery.getPickUpLongitude() == null) {
+            return Double.MAX_VALUE; // deliveries created before coordinates were captured sort last
+        }
+        return EarthDistanceCalculator.calculateHaversineDistance(
+                driverCoords.latitude(), driverCoords.longitude(),
+                delivery.getPickUpLatitude(), delivery.getPickUpLongitude()
+        ).doubleValue();
     }
 
     @Transactional

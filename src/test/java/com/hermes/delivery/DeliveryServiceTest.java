@@ -1,8 +1,9 @@
 package com.hermes.delivery;
 
 import com.hermes.TestcontainersConfig;
+import com.hermes.delivery.dto.CreateDeliveryRequest;
 import com.hermes.delivery.dto.DeliveryRequestDto;
-import com.hermes.delivery.dto.ParcelDto;
+import com.hermes.parcel.dto.ParcelDto;
 import com.hermes.delivery.exception.InvalidDeliveryException;
 import com.hermes.parcel.Parcel;
 import com.hermes.parcel.ParcelRepository;
@@ -12,12 +13,14 @@ import com.hermes.geocoding.GeocodingService;
 import com.hermes.user.*;
 import com.hermes.user.exception.RecipientProfileNotFoundException;
 import com.hermes.user.exception.SenderProfileNotFoundException;
+import com.hermes.user.exception.UserNotFoundException;
 import com.hermes.wallet.WalletService;
 import com.hermes.wallet.WalletTransactionType;
 import org.apache.camel.ProducerTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.annotation.Import;
@@ -54,6 +57,9 @@ class DeliveryServiceTest {
     private RecipientProfileRepository recipientProfileRepository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private ParcelRepository parcelRepository;
 
     @Mock
@@ -82,7 +88,7 @@ class DeliveryServiceTest {
     void setUp() {
         deliveryService = new DeliveryService(deliveryRepository, producerTemplate,
                 senderProfileRepository, recipientProfileRepository, parcelRepository, walletService,
-                geocodingService, pricingService);
+                geocodingService, pricingService, userRepository);
     }
 
     private User buildUser(Long id, String email) {
@@ -255,5 +261,119 @@ class DeliveryServiceTest {
                 argThat(amount -> amount.compareTo(new BigDecimal("20.00")) == 0),
                 eq(WalletTransactionType.REFUND),
                 eq(delivery));
+    }
+
+    // ---------- createDelivery ----------
+
+    @Test
+    void createDelivery_createsMissingSenderAndRecipientProfiles_thenDelegatesToCreateDeliveryRequest() {
+        User senderUser = buildUser(1L, "sender@example.com");
+        User recipientUser = buildUser(2L, "recipient@example.com");
+
+        CreateDeliveryRequest request = new CreateDeliveryRequest(
+                "recipient@example.com", "123 Pickup St", "456 Dropoff Ave",
+                "0400111222", "0400333444", DEFAULT_PARCELS);
+
+        when(userRepository.findByEmail("recipient@example.com")).thenReturn(Optional.of(recipientUser));
+
+        when(senderProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        SenderProfile savedSender = buildSender(10L, 1L, "sender@example.com");
+        when(senderProfileRepository.save(any(SenderProfile.class))).thenReturn(savedSender);
+        when(senderProfileRepository.findById(10L)).thenReturn(Optional.of(savedSender));
+
+        when(recipientProfileRepository.findByUserId(2L)).thenReturn(Optional.empty());
+        RecipientProfile savedRecipient = buildRecipient(20L, 2L, "recipient@example.com");
+        when(recipientProfileRepository.save(any(RecipientProfile.class))).thenReturn(savedRecipient);
+        when(recipientProfileRepository.findById(20L)).thenReturn(Optional.of(savedRecipient));
+
+        when(deliveryRepository.save(any(Delivery.class))).thenAnswer(inv -> inv.getArgument(0));
+        stubGeocodingAndPricing();
+
+        Delivery result = deliveryService.createDelivery(senderUser, request);
+
+        assertThat(result.getSender()).isEqualTo(savedSender);
+        assertThat(result.getRecipient()).isEqualTo(savedRecipient);
+        assertThat(result.getPickUpAddress()).isEqualTo("123 Pickup St");
+        assertThat(result.getDropOffAddress()).isEqualTo("456 Dropoff Ave");
+
+        ArgumentCaptor<SenderProfile> senderCaptor = ArgumentCaptor.forClass(SenderProfile.class);
+        verify(senderProfileRepository).save(senderCaptor.capture());
+        assertThat(senderCaptor.getValue().getAddress()).isEqualTo("123 Pickup St");
+        assertThat(senderCaptor.getValue().getPhoneNumber()).isEqualTo("0400111222");
+        assertThat(senderCaptor.getValue().getUser()).isEqualTo(senderUser);
+
+        ArgumentCaptor<RecipientProfile> recipientCaptor = ArgumentCaptor.forClass(RecipientProfile.class);
+        verify(recipientProfileRepository).save(recipientCaptor.capture());
+        assertThat(recipientCaptor.getValue().getAddress()).isEqualTo("456 Dropoff Ave");
+        assertThat(recipientCaptor.getValue().getPhoneNumber()).isEqualTo("0400333444");
+        assertThat(recipientCaptor.getValue().getUser()).isEqualTo(recipientUser);
+
+        verify(producerTemplate).sendBody(eq("seda:delivery-requests"), any(Delivery.class));
+    }
+
+    @Test
+    void createDelivery_reusesExistingProfiles_whenBothAlreadyExist() {
+        User senderUser = buildUser(1L, "sender@example.com");
+        User recipientUser = buildUser(2L, "recipient@example.com");
+        SenderProfile existingSender = buildSender(10L, 1L, "sender@example.com");
+        RecipientProfile existingRecipient = buildRecipient(20L, 2L, "recipient@example.com");
+
+        CreateDeliveryRequest request = new CreateDeliveryRequest(
+                "recipient@example.com", "123 Pickup St", "456 Dropoff Ave",
+                "0400111222", "0400333444", DEFAULT_PARCELS);
+
+        when(userRepository.findByEmail("recipient@example.com")).thenReturn(Optional.of(recipientUser));
+        when(senderProfileRepository.findByUserId(1L)).thenReturn(Optional.of(existingSender));
+        when(recipientProfileRepository.findByUserId(2L)).thenReturn(Optional.of(existingRecipient));
+        when(senderProfileRepository.findById(10L)).thenReturn(Optional.of(existingSender));
+        when(recipientProfileRepository.findById(20L)).thenReturn(Optional.of(existingRecipient));
+        when(deliveryRepository.save(any(Delivery.class))).thenAnswer(inv -> inv.getArgument(0));
+        stubGeocodingAndPricing();
+
+        Delivery result = deliveryService.createDelivery(senderUser, request);
+
+        assertThat(result.getSender()).isEqualTo(existingSender);
+        assertThat(result.getRecipient()).isEqualTo(existingRecipient);
+        verify(senderProfileRepository, never()).save(any());
+        verify(recipientProfileRepository, never()).save(any());
+    }
+
+    @Test
+    void createDelivery_throwsUserNotFoundException_whenRecipientEmailUnknown() {
+        User senderUser = buildUser(1L, "sender@example.com");
+        CreateDeliveryRequest request = new CreateDeliveryRequest(
+                "nobody@example.com", "123 Pickup St", "456 Dropoff Ave",
+                "0400111222", "0400333444", DEFAULT_PARCELS);
+
+        when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> deliveryService.createDelivery(senderUser, request))
+                .isInstanceOf(UserNotFoundException.class);
+
+        verifyNoInteractions(senderProfileRepository);
+        verifyNoInteractions(recipientProfileRepository);
+        verifyNoInteractions(deliveryRepository);
+        verifyNoInteractions(producerTemplate);
+    }
+
+    @Test
+    void createDelivery_throwsInvalidDeliveryException_whenRecipientEmailIsSendersOwnEmail() {
+        User senderUser = buildUser(1L, "same@example.com");
+        CreateDeliveryRequest request = new CreateDeliveryRequest(
+                "same@example.com", "123 Pickup St", "456 Dropoff Ave",
+                "0400111222", "0400333444", DEFAULT_PARCELS);
+
+        when(userRepository.findByEmail("same@example.com")).thenReturn(Optional.of(senderUser));
+        SenderProfile senderProfile = buildSender(10L, 1L, "same@example.com");
+        when(senderProfileRepository.findByUserId(1L)).thenReturn(Optional.of(senderProfile));
+        RecipientProfile recipientProfile = buildRecipient(20L, 1L, "same@example.com");
+        when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.of(recipientProfile));
+        when(senderProfileRepository.findById(10L)).thenReturn(Optional.of(senderProfile));
+        when(recipientProfileRepository.findById(20L)).thenReturn(Optional.of(recipientProfile));
+
+        assertThatThrownBy(() -> deliveryService.createDelivery(senderUser, request))
+                .isInstanceOf(InvalidDeliveryException.class);
+
+        verify(deliveryRepository, never()).save(any());
     }
 }

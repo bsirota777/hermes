@@ -1,6 +1,6 @@
 package com.hermes.pricing;
 
-import com.hermes.delivery.dto.ParcelDto;
+import com.hermes.parcel.dto.ParcelDto;
 import com.hermes.geocoding.Coordinates;
 import org.springframework.stereotype.Service;
 

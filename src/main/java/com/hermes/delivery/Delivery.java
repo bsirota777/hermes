@@ -67,6 +67,18 @@ public class Delivery {
     @Column(nullable = false, precision = 5, scale = 4)
     private BigDecimal driverCommissionRate; // e.g. 0.8000 = driver keeps 80%
 
+    @Column(name = "pick_up_latitude")
+    private Double pickUpLatitude;
+
+    @Column(name = "pick_up_longitude")
+    private Double pickUpLongitude;
+
+    @Column(name = "drop_off_latitude")
+    private Double dropOffLatitude;
+
+    @Column(name = "drop_off_longitude")
+    private Double dropOffLongitude;
+
     @Version
     private Long version; // optimistic locking for the reserve race condition
 }
