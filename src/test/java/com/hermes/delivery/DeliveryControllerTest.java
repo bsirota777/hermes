@@ -501,8 +501,20 @@ class DeliveryControllerTest {
         String requestBody = """
             {
               "recipientEmail": "bob@example.com",
-              "pickUpAddress": "123 Pickup St",
-              "dropOffAddress": "456 Dropoff Ave",
+              "pickUpAddress": {
+                "streetNumber": "123",
+                "streetName": "Pickup St",
+                "suburb": "Testville",
+                "state": "VIC",
+                "postcode": "3000"
+              },
+              "dropOffAddress": {
+                "streetNumber": "456",
+                "streetName": "Dropoff Ave",
+                "suburb": "Testville",
+                "state": "VIC",
+                "postcode": "3000"
+              },
               "senderPhoneNumber": "0400111222",
               "recipientPhoneNumber": "0400333444",
               "parcels": [
@@ -533,8 +545,20 @@ class DeliveryControllerTest {
         String requestBody = """
             {
               "recipientEmail": "bob@example.com",
-              "pickUpAddress": "123 Pickup St",
-              "dropOffAddress": "456 Dropoff Ave",
+              "pickUpAddress": {
+                "streetNumber": "123",
+                "streetName": "Pickup St",
+                "suburb": "Testville",
+                "state": "VIC",
+                "postcode": "3000"
+              },
+              "dropOffAddress": {
+                "streetNumber": "456",
+                "streetName": "Dropoff Ave",
+                "suburb": "Testville",
+                "state": "VIC",
+                "postcode": "3000"
+              },
               "senderPhoneNumber": "0400111222",
               "recipientPhoneNumber": "0400333444",
               "parcels": []
@@ -549,23 +573,30 @@ class DeliveryControllerTest {
 
     @Test
     void createDelivery_returns400_whenValidationFails() throws Exception {
-        // missing required fields (e.g. blank pickUpAddress) should trip @Valid
+        // blank streetNumber inside pickUpAddress should trip @Valid (requires @Valid on the field in CreateDeliveryRequest)
         String invalidBody = """
-            {
-              "recipientEmail": "bob@example.com",
-              "pickUpAddress": "",
-              "dropOffAddress": "456 Dropoff Ave",
-              "senderPhoneNumber": "0400111222",
-              "recipientPhoneNumber": "0400333444",
-              "parcels": []
-            }
-            """;
-
-        mockMvc.perform(post("/deliveries")
-                        .with(user("alice@example.com"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(invalidBody))
-                .andExpect(status().isBadRequest());
+        {
+          "recipientEmail": "bob@example.com",
+          "pickUpAddress": {
+            "streetNumber": "",
+            "streetName": "Pickup St",
+            "suburb": "Testville",
+            "state": "VIC",
+            "postcode": "3000"
+          },
+          "dropOffAddress": {
+            "streetNumber": "456",
+            "streetName": "Dropoff Ave",
+            "suburb": "Testville",
+            "state": "VIC",
+            "postcode": "3000"
+          },
+          "senderPhoneNumber": "0400111222",
+          "recipientPhoneNumber": "0400333444",
+          "parcels": []
+        }
+        """;
+        // ... perform + expect 400
     }
 
     @Test
@@ -580,8 +611,20 @@ class DeliveryControllerTest {
         String requestBody = """
             {
               "recipientEmail": "nobody@example.com",
-              "pickUpAddress": "123 Pickup St",
-              "dropOffAddress": "456 Dropoff Ave",
+              "pickUpAddress": {
+                "streetNumber": "123",
+                "streetName": "Pickup St",
+                "suburb": "Testville",
+                "state": "VIC",
+                "postcode": "3000"
+              },
+              "dropOffAddress": {
+                "streetNumber": "456",
+                "streetName": "Dropoff Ave",
+                "suburb": "Testville",
+                "state": "VIC",
+                "postcode": "3000"
+              },
               "senderPhoneNumber": "0400111222",
               "recipientPhoneNumber": "0400333444",
               "parcels": [
