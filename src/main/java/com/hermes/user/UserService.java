@@ -108,24 +108,24 @@ public class UserService implements UserDetailsService {
 
         DriverProfile profile = new DriverProfile();
         profile.setUser(user);
-        profile.setAddress(request.address());
+        profile.setAddress(request.address().toEntity());
         profile.setPhoneNumber(request.phoneNumber());
         profile.setLicenceNumber(request.licenceNumber());
         profile.setVehiclePlate(request.vehiclePlate());
 
         DriverProfile saved = driverProfileRepository.save(profile);
 
-        return new DriverProfileDto(saved.getId(), saved.getAddress(), saved.getPhoneNumber(),
-                saved.getLicenceNumber(), saved.getVehiclePlate());
+        return new DriverProfileDto(saved.getId(), AddressDto.from(saved.getAddress()),
+                saved.getPhoneNumber(), saved.getLicenceNumber(), saved.getVehiclePlate());
     }
 
     @Transactional
     public void updateAddress(User user, UpdateAddressRequest request) {
         senderProfileRepository.findByUserId(user.getId())
-                .ifPresent(p -> { p.setAddress(request.address()); senderProfileRepository.save(p); });
+                .ifPresent(p -> { p.setAddress(request.address().toEntity()); senderProfileRepository.save(p); });
         recipientProfileRepository.findByUserId(user.getId())
-                .ifPresent(p -> { p.setAddress(request.address()); recipientProfileRepository.save(p); });
+                .ifPresent(p -> { p.setAddress(request.address().toEntity()); recipientProfileRepository.save(p); });
         driverProfileRepository.findByUserId(user.getId())
-                .ifPresent(p -> { p.setAddress(request.address()); driverProfileRepository.save(p); });
+                .ifPresent(p -> { p.setAddress(request.address().toEntity()); driverProfileRepository.save(p); });
     }
 }

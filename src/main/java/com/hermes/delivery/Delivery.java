@@ -1,6 +1,7 @@
 package com.hermes.delivery;
 
 import com.hermes.parcel.Parcel;
+import com.hermes.user.Address;
 import com.hermes.user.DriverProfile;
 import com.hermes.user.RecipientProfile;
 import com.hermes.user.SenderProfile;
@@ -44,11 +45,25 @@ public class Delivery {
     @OneToMany(mappedBy = "delivery")
     private List<Parcel> parcels = new ArrayList<>();
 
-    @Column(name = "pick_up_address", nullable = false)
-    private String pickUpAddress;
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "streetNumber", column = @Column(name = "pick_up_street_number", nullable = false)),
+            @AttributeOverride(name = "streetName", column = @Column(name = "pick_up_street_name", nullable = false)),
+            @AttributeOverride(name = "suburb", column = @Column(name = "pick_up_suburb", nullable = false)),
+            @AttributeOverride(name = "state", column = @Column(name = "pick_up_state", nullable = false)),
+            @AttributeOverride(name = "postcode", column = @Column(name = "pick_up_postcode", nullable = false))
+    })
+    private Address pickUpAddress;
 
-    @Column(name = "drop_off_address", nullable = false)
-    private String dropOffAddress;
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "streetNumber", column = @Column(name = "drop_off_street_number", nullable = false)),
+            @AttributeOverride(name = "streetName", column = @Column(name = "drop_off_street_name", nullable = false)),
+            @AttributeOverride(name = "suburb", column = @Column(name = "drop_off_suburb", nullable = false)),
+            @AttributeOverride(name = "state", column = @Column(name = "drop_off_state", nullable = false)),
+            @AttributeOverride(name = "postcode", column = @Column(name = "drop_off_postcode", nullable = false))
+    })
+    private Address dropOffAddress;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -57,7 +72,6 @@ public class Delivery {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
-    // pickup/dropoff addresses, timestamps, etc.
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal deliveryFee;
@@ -82,4 +96,3 @@ public class Delivery {
     @Version
     private Long version; // optimistic locking for the reserve race condition
 }
-

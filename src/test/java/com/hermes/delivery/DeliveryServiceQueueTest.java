@@ -8,6 +8,7 @@ import com.hermes.delivery.route.DeliveryRequestQueueHandler;
 import com.hermes.geocoding.Coordinates;
 import com.hermes.geocoding.GeocodingService;
 import com.hermes.user.*;
+import com.hermes.user.dto.AddressDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -75,13 +76,13 @@ class DeliveryServiceQueueTest {
         User savedRecipientUser = userRepository.save(recipientUser);
 
         SenderProfile sender = new SenderProfile();
-        sender.setAddress("123 ABC street");
+        sender.setAddress(new Address("123", "ABC Street", "Springfield", "VIC", "3000"));
         sender.setPhoneNumber("0412788899");
         sender.setUser(savedSenderUser);
         senderId = senderProfileRepository.save(sender).getId();
 
         RecipientProfile recipient = new RecipientProfile();
-        recipient.setAddress("345 XYZ street");
+        recipient.setAddress(new Address("345", "XYZ Street", "Shelbyville", "VIC", "3001"));
         recipient.setPhoneNumber("041234567");
         recipient.setUser(savedRecipientUser);
         recipientId = recipientProfileRepository.save(recipient).getId();
@@ -95,7 +96,9 @@ class DeliveryServiceQueueTest {
                 .thenReturn(new BigDecimal("25.00"));
 
         DeliveryRequestDto dto = new DeliveryRequestDto(
-                senderId, recipientId, "123 Main St", "456 Oak Ave",
+                senderId, recipientId,
+                new AddressDto("123", "Main St", "Springfield", "VIC", "3000"),
+                new AddressDto("456", "Oak Ave", "Shelbyville", "VIC", "3001"),
                 List.of(new ParcelDto(
                         "Test parcel",
                         new BigDecimal("10.00"),

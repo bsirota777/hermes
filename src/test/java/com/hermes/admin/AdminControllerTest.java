@@ -3,14 +3,9 @@ package com.hermes.admin;
 import com.hermes.delivery.Delivery;
 import com.hermes.delivery.DeliveryRepository;
 import com.hermes.delivery.DeliveryStatus;
-import com.hermes.user.DriverProfile;
-import com.hermes.user.RecipientProfile;
-import com.hermes.user.SenderProfile;
+import com.hermes.user.*;
 import com.hermes.parcel.Parcel;
 import com.hermes.parcel.ParcelRepository;
-import com.hermes.user.Role;
-import com.hermes.user.User;
-import com.hermes.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -134,14 +129,17 @@ class AdminControllerTest {
         when(driver.getUser()).thenReturn(driverUser);
         when(driver.getLicenceNumber()).thenReturn("LIC123");
 
+        Address pickUp = new Address("1", "Pickup St", "Springfield", "VIC", "3000");
+        Address dropOff = new Address("2", "Dropoff Ave", "Shelbyville", "VIC", "3001");
+
         Delivery delivery = mock(Delivery.class);
         when(delivery.getId()).thenReturn(100L);
         when(delivery.getStatus()).thenReturn(DeliveryStatus.ASSIGNED);
         when(delivery.getSender()).thenReturn(sender);
         when(delivery.getRecipient()).thenReturn(recipient);
         when(delivery.getDriver()).thenReturn(driver);
-        when(delivery.getPickUpAddress()).thenReturn("1 Pickup St");
-        when(delivery.getDropOffAddress()).thenReturn("2 Dropoff Ave");
+        when(delivery.getPickUpAddress()).thenReturn(pickUp);
+        when(delivery.getDropOffAddress()).thenReturn(dropOff);
         when(delivery.getDeliveryFee()).thenReturn(new BigDecimal("15.50"));
         when(delivery.getParcels()).thenReturn(List.of(mock(Parcel.class), mock(Parcel.class)));
         when(delivery.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 1, 1, 12, 0));
@@ -161,8 +159,8 @@ class AdminControllerTest {
         assertThat(dto.recipientPhone()).isEqualTo("0400333444");
         assertThat(dto.driverName()).isEqualTo("Driver Dan");
         assertThat(dto.driverVerified()).isTrue();
-        assertThat(dto.pickUpAddress()).isEqualTo("1 Pickup St");
-        assertThat(dto.dropOffAddress()).isEqualTo("2 Dropoff Ave");
+        assertThat(dto.pickUpAddress()).isEqualTo(pickUp.toFormattedString());
+        assertThat(dto.dropOffAddress()).isEqualTo(dropOff.toFormattedString());
         assertThat(dto.deliveryFee()).isEqualByComparingTo("15.50");
         assertThat(dto.parcelCount()).isEqualTo(2);
     }
@@ -183,14 +181,17 @@ class AdminControllerTest {
         when(recipient.getUser()).thenReturn(recipientUser);
         when(recipient.getPhoneNumber()).thenReturn("0400333444");
 
+        Address pickUp = new Address("1", "Pickup St", "Springfield", "VIC", "3000");
+        Address dropOff = new Address("2", "Dropoff Ave", "Shelbyville", "VIC", "3001");
+
         Delivery delivery = mock(Delivery.class);
         when(delivery.getId()).thenReturn(101L);
         when(delivery.getStatus()).thenReturn(DeliveryStatus.CREATED);
         when(delivery.getSender()).thenReturn(sender);
         when(delivery.getRecipient()).thenReturn(recipient);
         when(delivery.getDriver()).thenReturn(null);
-        when(delivery.getPickUpAddress()).thenReturn("1 Pickup St");
-        when(delivery.getDropOffAddress()).thenReturn("2 Dropoff Ave");
+        when(delivery.getPickUpAddress()).thenReturn(pickUp);
+        when(delivery.getDropOffAddress()).thenReturn(dropOff);
         when(delivery.getDeliveryFee()).thenReturn(new BigDecimal("10.00"));
         when(delivery.getParcels()).thenReturn(List.of());
         when(delivery.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 1, 1, 12, 0));

@@ -48,6 +48,9 @@ class UserServiceTest {
     @InjectMocks
     UserService userService;
 
+    private static final AddressDto TEST_ADDRESS =
+            new AddressDto("1", "New St", "Springfield", "VIC", "3000");
+
     @Test
     void register_hashesPassword_andSaves() {
         when(passwordEncoder.encode("secret")).thenReturn("hashed");
@@ -129,11 +132,17 @@ class UserServiceTest {
         when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.of(recipient));
         when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.of(driver));
 
-        userService.updateAddress(user, new UpdateAddressRequest("1 New St"));
+        userService.updateAddress(user, new UpdateAddressRequest(TEST_ADDRESS));
 
-        assertThat(sender.getAddress()).isEqualTo("1 New St");
-        assertThat(recipient.getAddress()).isEqualTo("1 New St");
-        assertThat(driver.getAddress()).isEqualTo("1 New St");
+        assertThat(sender.getAddress().getStreetNumber()).isEqualTo("1");
+        assertThat(sender.getAddress().getStreetName()).isEqualTo("New St");
+        assertThat(sender.getAddress().getSuburb()).isEqualTo("Springfield");
+        assertThat(sender.getAddress().getState()).isEqualTo("VIC");
+        assertThat(sender.getAddress().getPostcode()).isEqualTo("3000");
+
+        assertThat(recipient.getAddress().getStreetNumber()).isEqualTo("1");
+        assertThat(driver.getAddress().getStreetNumber()).isEqualTo("1");
+
         verify(senderProfileRepository).save(sender);
         verify(recipientProfileRepository).save(recipient);
         verify(driverProfileRepository).save(driver);
@@ -150,9 +159,9 @@ class UserServiceTest {
         when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.of(driver));
 
-        userService.updateAddress(user, new UpdateAddressRequest("1 New St"));
+        userService.updateAddress(user, new UpdateAddressRequest(TEST_ADDRESS));
 
-        assertThat(driver.getAddress()).isEqualTo("1 New St");
+        assertThat(driver.getAddress().getStreetNumber()).isEqualTo("1");
         verify(driverProfileRepository).save(driver);
         verify(senderProfileRepository, never()).save(any());
         verify(recipientProfileRepository, never()).save(any());
@@ -167,7 +176,7 @@ class UserServiceTest {
         when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
 
-        userService.updateAddress(user, new UpdateAddressRequest("1 New St"));
+        userService.updateAddress(user, new UpdateAddressRequest(TEST_ADDRESS));
 
         verify(senderProfileRepository, never()).save(any());
         verify(recipientProfileRepository, never()).save(any());
@@ -213,7 +222,7 @@ class UserServiceTest {
         user.setId(1L);
 
         DriverRegistrationRequest request = new DriverRegistrationRequest(
-                "1 New St", "0400000000", "LIC123", "ABC123");
+                TEST_ADDRESS, "0400000000", "LIC123", "ABC123");
 
         when(driverProfileRepository.existsByUserId(1L)).thenReturn(false);
         when(driverProfileRepository.save(any(DriverProfile.class))).thenAnswer(inv -> {
@@ -225,7 +234,11 @@ class UserServiceTest {
         DriverProfileDto result = userService.registerAsDriver(user, request);
 
         assertThat(result.id()).isEqualTo(10L);
-        assertThat(result.address()).isEqualTo("1 New St");
+        assertThat(result.address().streetNumber()).isEqualTo("1");
+        assertThat(result.address().streetName()).isEqualTo("New St");
+        assertThat(result.address().suburb()).isEqualTo("Springfield");
+        assertThat(result.address().state()).isEqualTo("VIC");
+        assertThat(result.address().postcode()).isEqualTo("3000");
         assertThat(result.phoneNumber()).isEqualTo("0400000000");
         assertThat(result.licenceNumber()).isEqualTo("LIC123");
         assertThat(result.vehiclePlate()).isEqualTo("ABC123");
@@ -242,7 +255,7 @@ class UserServiceTest {
 
         assertThrows(DriverProfileAlreadyExistsException.class, () ->
                 userService.registerAsDriver(user, new DriverRegistrationRequest(
-                        "1 New St", "0400000000", "LIC123", "ABC123")));
+                        TEST_ADDRESS, "0400000000", "LIC123", "ABC123")));
 
         verify(driverProfileRepository, never()).save(any());
     }

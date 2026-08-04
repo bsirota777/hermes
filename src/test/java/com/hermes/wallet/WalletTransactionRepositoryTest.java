@@ -51,13 +51,13 @@ class WalletTransactionRepositoryTest {
 
     private Delivery persistDelivery(User senderUser, User recipientUser) {
         SenderProfile sender = new SenderProfile();
-        sender.setAddress("123 ABC street");
+        sender.setAddress(new Address("123", "ABC Street", "Springfield", "VIC", "3000"));
         sender.setPhoneNumber("0412788899");
         sender.setUser(senderUser);
         SenderProfile savedSender = senderProfileRepository.save(sender);
 
         RecipientProfile recipient = new RecipientProfile();
-        recipient.setAddress("345 XYZ street");
+        recipient.setAddress(new Address("345", "XYZ Street", "Shelbyville", "VIC", "3001"));
         recipient.setPhoneNumber("041234567");
         recipient.setUser(recipientUser);
         RecipientProfile savedRecipient = recipientProfileRepository.save(recipient);
@@ -65,8 +65,8 @@ class WalletTransactionRepositoryTest {
         Delivery delivery = new Delivery();
         delivery.setSender(savedSender);
         delivery.setRecipient(savedRecipient);
-        delivery.setPickUpAddress("123 Main St");
-        delivery.setDropOffAddress("456 Oak Ave");
+        delivery.setPickUpAddress(new Address("123", "Main St", "Springfield", "VIC", "3000"));
+        delivery.setDropOffAddress(new Address("456", "Oak Ave", "Shelbyville", "VIC", "3001"));
         delivery.setDeliveryFee(new BigDecimal("25.00"));
         delivery.setDriverCommissionRate(new BigDecimal("0.80"));
         delivery.setStatus(DeliveryStatus.CREATED);

@@ -34,7 +34,7 @@ class DriverProfileRepositoryTest {
         profile.setUser(user);
         profile.setLicenceNumber("DL123456");
         profile.setVehiclePlate("ABC123");
-        profile.setAddress("123 Main St");
+        profile.setAddress(new Address("123", "Main St", "Springfield", "VIC", "3000"));
         profile.setPhoneNumber("0400000000");
         return profile;
     }

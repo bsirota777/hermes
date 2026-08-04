@@ -76,7 +76,7 @@ public class DeliveryService {
                 .orElseGet(() -> {
                     SenderProfile p = new SenderProfile();
                     p.setUser(senderUser);
-                    p.setAddress(request.pickUpAddress());
+                    p.setAddress(request.pickUpAddress().toEntity());
                     p.setPhoneNumber(request.senderPhoneNumber());
                     return senderProfileRepository.save(p);
                 });
@@ -85,7 +85,7 @@ public class DeliveryService {
                 .orElseGet(() -> {
                     RecipientProfile p = new RecipientProfile();
                     p.setUser(recipientUser);
-                    p.setAddress(request.dropOffAddress());
+                    p.setAddress(request.dropOffAddress().toEntity());
                     p.setPhoneNumber(request.recipientPhoneNumber());
                     return recipientProfileRepository.save(p);
                 });
@@ -106,15 +106,15 @@ public class DeliveryService {
 
         validateSenderNotRecipient(sender, recipient);
 
-        Coordinates pickUp = geocodingService.geocode(request.pickUpAddress());
-        Coordinates dropOff = geocodingService.geocode(request.dropOffAddress());
+        Coordinates pickUp = geocodingService.geocode(request.pickUpAddress().toFormattedString());
+        Coordinates dropOff = geocodingService.geocode(request.dropOffAddress().toFormattedString());
         BigDecimal deliveryFee = pricingService.calculateDeliveryFee(pickUp, dropOff, request.parcels());
 
         Delivery delivery = new Delivery();
         delivery.setSender(sender);
         delivery.setRecipient(recipient);
-        delivery.setPickUpAddress(request.pickUpAddress());
-        delivery.setDropOffAddress(request.dropOffAddress());
+        delivery.setPickUpAddress(request.pickUpAddress().toEntity());
+        delivery.setDropOffAddress(request.dropOffAddress().toEntity());
         delivery.setPickUpLatitude(pickUp.latitude());
         delivery.setPickUpLongitude(pickUp.longitude());
         delivery.setDropOffLatitude(dropOff.latitude());
@@ -177,7 +177,7 @@ public class DeliveryService {
 
     public Page<Delivery> getQueueForDriver(DriverProfile driver, int page, int size) {
         List<Delivery> unassigned = deliveryRepository.findByDriverIsNull(Pageable.unpaged()).getContent();
-        Coordinates driverCoords = geocodingService.geocode(driver.getAddress());
+        Coordinates driverCoords = geocodingService.geocode(driver.getAddress().toFormattedString());
 
         List<Delivery> sorted = unassigned.stream()
                 .sorted(Comparator.comparingDouble(d -> distanceFromDriver(driverCoords, d)))

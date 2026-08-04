@@ -4,6 +4,7 @@ import com.hermes.TestcontainersConfig;
 import com.hermes.security.JwtService;
 import com.hermes.security.SecurityConfig;
 import com.hermes.user.dto.AccountDto;
+import com.hermes.user.dto.AddressDto;
 import com.hermes.user.dto.DriverProfileDto;
 import com.hermes.user.dto.DriverRegistrationRequest;
 import com.hermes.user.dto.UpdateAddressRequest;
@@ -45,6 +46,9 @@ class UserControllerTest {
     JwtService jwtService;
     @MockitoBean UserService userDetailsService;
 
+    private static final AddressDto TEST_ADDRESS =
+            new AddressDto("1", "New St", "Springfield", "VIC", "3000");
+
     @Test
     void createUser_returns201_withLocationHeader() throws Exception {
         when(userService.registerUser(any()))
@@ -83,7 +87,7 @@ class UserControllerTest {
                         .with(user("jdoe@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                {"address":"1 New St"}
+                {"address":{"streetNumber":"1","streetName":"New St","suburb":"Springfield","state":"VIC","postcode":"3000"}}
                 """))
                 .andExpect(status().isNoContent());
 
@@ -95,7 +99,7 @@ class UserControllerTest {
         mockMvc.perform(patch("/users/me/address")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                {"address":"1 New St"}
+                {"address":{"streetNumber":"1","streetName":"New St","suburb":"Springfield","state":"VIC","postcode":"3000"}}
                 """))
                 .andExpect(status().isForbidden());
     }
@@ -106,7 +110,7 @@ class UserControllerTest {
                         .with(user("jdoe@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                {"address":""}
+                {"address":{"streetNumber":"","streetName":"","suburb":"","state":"","postcode":""}}
                 """))
                 .andExpect(status().isBadRequest());
     }
@@ -120,13 +124,13 @@ class UserControllerTest {
 
         when(userService.loadUserByEmail("jdoe@example.com")).thenReturn(user);
         when(userService.registerAsDriver(eq(user), any(DriverRegistrationRequest.class)))
-                .thenReturn(new DriverProfileDto(10L, "1 New St", "0400000000", "LIC123", "ABC123"));
+                .thenReturn(new DriverProfileDto(10L, TEST_ADDRESS, "0400000000", "LIC123", "ABC123"));
 
         mockMvc.perform(post("/users/me/driver-profile")
                         .with(user("jdoe@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                {"address":"1 New St","phoneNumber":"0400000000","licenceNumber":"LIC123","vehiclePlate":"ABC123"}
+                {"address":{"streetNumber":"1","streetName":"New St","suburb":"Springfield","state":"VIC","postcode":"3000"},"phoneNumber":"0400000000","licenceNumber":"LIC123","vehiclePlate":"ABC123"}
                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(10))
@@ -139,9 +143,20 @@ class UserControllerTest {
         mockMvc.perform(post("/users/me/driver-profile")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                {"address":"1 New St","phoneNumber":"0400000000","licenceNumber":"LIC123","vehiclePlate":"ABC123"}
+                {"address":{"streetNumber":"1","streetName":"New St","suburb":"Springfield","state":"VIC","postcode":"3000"},"phoneNumber":"0400000000","licenceNumber":"LIC123","vehiclePlate":"ABC123"}
                 """))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void registerAsDriver_returns400_whenAddressBlank() throws Exception {
+        mockMvc.perform(post("/users/me/driver-profile")
+                        .with(user("jdoe@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+            {"address":{"streetNumber":"","streetName":"","suburb":"","state":"","postcode":""},"phoneNumber":"0400000000","licenceNumber":"LIC123","vehiclePlate":"ABC123"}
+            """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -157,7 +172,7 @@ class UserControllerTest {
                         .with(user("jdoe@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                {"address":"1 New St","phoneNumber":"0400000000","licenceNumber":"LIC123","vehiclePlate":"ABC123"}
+                {"address":{"streetNumber":"1","streetName":"New St","suburb":"Springfield","state":"VIC","postcode":"3000"},"phoneNumber":"0400000000","licenceNumber":"LIC123","vehiclePlate":"ABC123"}
                 """))
                 .andExpect(status().isConflict());
     }

@@ -51,7 +51,7 @@ class ParcelRepositoryTest {
         User user = persistUser(email);
         SenderProfile sender = new SenderProfile();
         sender.setUser(user);
-        sender.setAddress("1 Sender St");
+        sender.setAddress(new Address("1", "Sender St", "Springfield", "VIC", "3000"));
         sender.setPhoneNumber("0400000001");
         return senderProfileRepository.save(sender);
     }
@@ -60,7 +60,7 @@ class ParcelRepositoryTest {
         User user = persistUser(email);
         RecipientProfile recipient = new RecipientProfile();
         recipient.setUser(user);
-        recipient.setAddress("1 Recipient St");
+        recipient.setAddress(new Address("1", "Recipient St", "Springfield", "VIC", "3000"));
         recipient.setPhoneNumber("0400000002");
         return recipientProfileRepository.save(recipient);
     }
@@ -71,8 +71,8 @@ class ParcelRepositoryTest {
         Delivery delivery = new Delivery();
         delivery.setSender(sender);
         delivery.setRecipient(recipient);
-        delivery.setPickUpAddress("123 Test St");
-        delivery.setDropOffAddress("456 Sample Ave");
+        delivery.setPickUpAddress(new Address("123", "Test St", "Springfield", "VIC", "3000"));
+        delivery.setDropOffAddress(new Address("456", "Sample Ave", "Shelbyville", "VIC", "3001"));
         delivery.setDeliveryFee(new BigDecimal("25.00"));       // adjust field name/type to match your entity
         delivery.setDriverCommissionRate(new BigDecimal("0.20")); // adjust to match your entity
         delivery.setStatus(DeliveryStatus.CREATED);

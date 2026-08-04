@@ -94,7 +94,7 @@ public class AdminController {
                 d.getRecipient().getUser().getName(), d.getRecipient().getPhoneNumber(),
                 driver != null ? driver.getUser().getName() : null,
                 driver != null && driver.getLicenceNumber() != null,
-                d.getPickUpAddress(), d.getDropOffAddress(),
+                d.getPickUpAddress().toFormattedString(), d.getDropOffAddress().toFormattedString(),
                 d.getDeliveryFee(), d.getParcels().size(), d.getCreatedAt());
     }
 

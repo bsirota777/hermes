@@ -32,7 +32,7 @@ class SenderProfileRepositoryTest {
     private SenderProfile buildSenderProfile(User user) {
         SenderProfile profile = new SenderProfile();
         profile.setUser(user);
-        profile.setAddress("123 Main St");
+        profile.setAddress(new Address("123", "Main St", "Springfield", "VIC", "3000"));
         profile.setPhoneNumber("0400000000");
         return profile;
     }
@@ -46,7 +46,8 @@ class SenderProfileRepositoryTest {
         Optional<SenderProfile> found = senderProfileRepository.findByUserId(user.getId());
 
         assertThat(found).isPresent();
-        assertThat(found.get().getAddress()).isEqualTo("123 Main St");
+        assertThat(found.get().getAddress().getStreetNumber()).isEqualTo("123");
+        assertThat(found.get().getAddress().getStreetName()).isEqualTo("Main St");
         assertThat(found.get().getPhoneNumber()).isEqualTo("0400000000");
     }
 

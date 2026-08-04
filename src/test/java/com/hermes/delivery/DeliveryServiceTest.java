@@ -11,6 +11,7 @@ import com.hermes.pricing.PricingService;
 import com.hermes.geocoding.Coordinates;
 import com.hermes.geocoding.GeocodingService;
 import com.hermes.user.*;
+import com.hermes.user.dto.AddressDto;
 import com.hermes.user.exception.RecipientProfileNotFoundException;
 import com.hermes.user.exception.SenderProfileNotFoundException;
 import com.hermes.user.exception.UserNotFoundException;
@@ -84,6 +85,11 @@ class DeliveryServiceTest {
             null
     ));
 
+    private static final AddressDto PICKUP_ADDRESS =
+            new AddressDto("123", "Pickup St", "Springfield", "VIC", "3000");
+    private static final AddressDto DROPOFF_ADDRESS =
+            new AddressDto("456", "Dropoff Ave", "Shelbyville", "VIC", "3001");
+
     @BeforeEach
     void setUp() {
         deliveryService = new DeliveryService(deliveryRepository, producerTemplate,
@@ -122,7 +128,7 @@ class DeliveryServiceTest {
         RecipientProfile recipient = buildRecipient(2L, 2L, "recipient@example.com");
 
         DeliveryRequestDto request = new DeliveryRequestDto(
-                sender.getId(), recipient.getId(), "123 Pickup St", "456 Dropoff Ave", DEFAULT_PARCELS);
+                sender.getId(), recipient.getId(), PICKUP_ADDRESS, DROPOFF_ADDRESS, DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(sender.getId())).thenReturn(Optional.of(sender));
         when(recipientProfileRepository.findById(recipient.getId())).thenReturn(Optional.of(recipient));
@@ -134,8 +140,10 @@ class DeliveryServiceTest {
 
         assertThat(result.getSender()).isEqualTo(sender);
         assertThat(result.getRecipient()).isEqualTo(recipient);
-        assertThat(result.getPickUpAddress()).isEqualTo("123 Pickup St");
-        assertThat(result.getDropOffAddress()).isEqualTo("456 Dropoff Ave");
+        assertThat(result.getPickUpAddress().getStreetNumber()).isEqualTo("123");
+        assertThat(result.getPickUpAddress().getStreetName()).isEqualTo("Pickup St");
+        assertThat(result.getDropOffAddress().getStreetNumber()).isEqualTo("456");
+        assertThat(result.getDropOffAddress().getStreetName()).isEqualTo("Dropoff Ave");
         assertThat(result.getStatus()).isEqualTo(DeliveryStatus.CREATED);
         assertThat(result.getDeliveryFee()).isEqualByComparingTo("25.00");
 
@@ -150,7 +158,7 @@ class DeliveryServiceTest {
         RecipientProfile recipient = buildRecipient(2L, 1L, "same@example.com");
 
         DeliveryRequestDto request = new DeliveryRequestDto(
-                sender.getId(), recipient.getId(), "123 Pickup St", "456 Dropoff Ave", DEFAULT_PARCELS);
+                sender.getId(), recipient.getId(), PICKUP_ADDRESS, DROPOFF_ADDRESS, DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(sender.getId())).thenReturn(Optional.of(sender));
         when(recipientProfileRepository.findById(recipient.getId())).thenReturn(Optional.of(recipient));
@@ -169,7 +177,7 @@ class DeliveryServiceTest {
     @Test
     void createDeliveryRequest_throwsSenderProfileNotFoundException_whenSenderMissing() {
         DeliveryRequestDto request = new DeliveryRequestDto(
-                99L, 2L, "123 Pickup St", "456 Dropoff Ave", DEFAULT_PARCELS);
+                99L, 2L, PICKUP_ADDRESS, DROPOFF_ADDRESS, DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -185,7 +193,7 @@ class DeliveryServiceTest {
     void createDeliveryRequest_throwsRecipientProfileNotFoundException_whenRecipientMissing() {
         SenderProfile sender = buildSender(1L, 1L, "sender@example.com");
         DeliveryRequestDto request = new DeliveryRequestDto(
-                sender.getId(), 99L, "123 Pickup St", "456 Dropoff Ave", DEFAULT_PARCELS);
+                sender.getId(), 99L, PICKUP_ADDRESS, DROPOFF_ADDRESS, DEFAULT_PARCELS);
 
         when(senderProfileRepository.findById(sender.getId())).thenReturn(Optional.of(sender));
         when(recipientProfileRepository.findById(99L)).thenReturn(Optional.empty());
@@ -271,7 +279,7 @@ class DeliveryServiceTest {
         User recipientUser = buildUser(2L, "recipient@example.com");
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
-                "recipient@example.com", "123 Pickup St", "456 Dropoff Ave",
+                "recipient@example.com", PICKUP_ADDRESS, DROPOFF_ADDRESS,
                 "0400111222", "0400333444", DEFAULT_PARCELS);
 
         when(userRepository.findByEmail("recipient@example.com")).thenReturn(Optional.of(recipientUser));
@@ -293,18 +301,20 @@ class DeliveryServiceTest {
 
         assertThat(result.getSender()).isEqualTo(savedSender);
         assertThat(result.getRecipient()).isEqualTo(savedRecipient);
-        assertThat(result.getPickUpAddress()).isEqualTo("123 Pickup St");
-        assertThat(result.getDropOffAddress()).isEqualTo("456 Dropoff Ave");
+        assertThat(result.getPickUpAddress().getStreetNumber()).isEqualTo("123");
+        assertThat(result.getDropOffAddress().getStreetNumber()).isEqualTo("456");
 
         ArgumentCaptor<SenderProfile> senderCaptor = ArgumentCaptor.forClass(SenderProfile.class);
         verify(senderProfileRepository).save(senderCaptor.capture());
-        assertThat(senderCaptor.getValue().getAddress()).isEqualTo("123 Pickup St");
+        assertThat(senderCaptor.getValue().getAddress().getStreetNumber()).isEqualTo("123");
+        assertThat(senderCaptor.getValue().getAddress().getStreetName()).isEqualTo("Pickup St");
         assertThat(senderCaptor.getValue().getPhoneNumber()).isEqualTo("0400111222");
         assertThat(senderCaptor.getValue().getUser()).isEqualTo(senderUser);
 
         ArgumentCaptor<RecipientProfile> recipientCaptor = ArgumentCaptor.forClass(RecipientProfile.class);
         verify(recipientProfileRepository).save(recipientCaptor.capture());
-        assertThat(recipientCaptor.getValue().getAddress()).isEqualTo("456 Dropoff Ave");
+        assertThat(recipientCaptor.getValue().getAddress().getStreetNumber()).isEqualTo("456");
+        assertThat(recipientCaptor.getValue().getAddress().getStreetName()).isEqualTo("Dropoff Ave");
         assertThat(recipientCaptor.getValue().getPhoneNumber()).isEqualTo("0400333444");
         assertThat(recipientCaptor.getValue().getUser()).isEqualTo(recipientUser);
 
@@ -319,7 +329,7 @@ class DeliveryServiceTest {
         RecipientProfile existingRecipient = buildRecipient(20L, 2L, "recipient@example.com");
 
         CreateDeliveryRequest request = new CreateDeliveryRequest(
-                "recipient@example.com", "123 Pickup St", "456 Dropoff Ave",
+                "recipient@example.com", PICKUP_ADDRESS, DROPOFF_ADDRESS,
                 "0400111222", "0400333444", DEFAULT_PARCELS);
 
         when(userRepository.findByEmail("recipient@example.com")).thenReturn(Optional.of(recipientUser));
@@ -342,7 +352,7 @@ class DeliveryServiceTest {
     void createDelivery_throwsUserNotFoundException_whenRecipientEmailUnknown() {
         User senderUser = buildUser(1L, "sender@example.com");
         CreateDeliveryRequest request = new CreateDeliveryRequest(
-                "nobody@example.com", "123 Pickup St", "456 Dropoff Ave",
+                "nobody@example.com", PICKUP_ADDRESS, DROPOFF_ADDRESS,
                 "0400111222", "0400333444", DEFAULT_PARCELS);
 
         when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
@@ -360,7 +370,7 @@ class DeliveryServiceTest {
     void createDelivery_throwsInvalidDeliveryException_whenRecipientEmailIsSendersOwnEmail() {
         User senderUser = buildUser(1L, "same@example.com");
         CreateDeliveryRequest request = new CreateDeliveryRequest(
-                "same@example.com", "123 Pickup St", "456 Dropoff Ave",
+                "same@example.com", PICKUP_ADDRESS, DROPOFF_ADDRESS,
                 "0400111222", "0400333444", DEFAULT_PARCELS);
 
         when(userRepository.findByEmail("same@example.com")).thenReturn(Optional.of(senderUser));
@@ -405,7 +415,7 @@ class DeliveryServiceTest {
         verifyNoInteractions(deliveryRepository);
     }
 
-// ---------- getReceivedDeliveries ----------
+    // ---------- getReceivedDeliveries ----------
 
     @Test
     void getReceivedDeliveries_returnsPage_whenRecipientProfileExists() {
@@ -433,7 +443,7 @@ class DeliveryServiceTest {
         verifyNoInteractions(deliveryRepository);
     }
 
-// ---------- getDrivenDeliveries ----------
+    // ---------- getDrivenDeliveries ----------
 
     @Test
     void getDrivenDeliveries_returnsPageFromRepository() {
@@ -448,12 +458,14 @@ class DeliveryServiceTest {
         assertThat(result.getContent()).hasSize(1);
     }
 
-// ---------- getQueueForDriver ----------
+    // ---------- getQueueForDriver ----------
 
     @Test
     void getQueueForDriver_sortsUnassignedDeliveriesByDistanceFromDriver() {
         DriverProfile driver = new DriverProfile();
-        driver.setAddress("Melbourne CBD");
+        Address driverAddress = new Address("1", "Collins St", "Melbourne", "VIC", "3000");
+        driver.setAddress(driverAddress);
+        String formattedDriverAddress = driverAddress.toFormattedString();
 
         Delivery near = new Delivery();
         near.setId(1L);
@@ -465,7 +477,7 @@ class DeliveryServiceTest {
         far.setPickUpLatitude(-33.8688); // Sydney
         far.setPickUpLongitude(151.2093);
 
-        when(geocodingService.geocode("Melbourne CBD"))
+        when(geocodingService.geocode(formattedDriverAddress))
                 .thenReturn(new Coordinates(-37.8136, 144.9631));
         when(deliveryRepository.findByDriverIsNull(Pageable.unpaged()))
                 .thenReturn(new PageImpl<>(List.of(far, near)));
@@ -474,13 +486,15 @@ class DeliveryServiceTest {
 
         assertThat(result.getContent()).containsExactly(near, far);
         assertThat(result.getTotalElements()).isEqualTo(2);
-        verify(geocodingService, times(1)).geocode("Melbourne CBD");
+        verify(geocodingService, times(1)).geocode(formattedDriverAddress);
     }
 
     @Test
     void getQueueForDriver_appliesPaginationAfterSorting() {
         DriverProfile driver = new DriverProfile();
-        driver.setAddress("Melbourne CBD");
+        Address driverAddress = new Address("1", "Collins St", "Melbourne", "VIC", "3000");
+        driver.setAddress(driverAddress);
+        String formattedDriverAddress = driverAddress.toFormattedString();
 
         Delivery closest = new Delivery();
         closest.setId(1L);
@@ -497,7 +511,7 @@ class DeliveryServiceTest {
         farthest.setPickUpLatitude(-33.8688);
         farthest.setPickUpLongitude(151.2093);
 
-        when(geocodingService.geocode("Melbourne CBD"))
+        when(geocodingService.geocode(formattedDriverAddress))
                 .thenReturn(new Coordinates(-37.8136, 144.9631));
         when(deliveryRepository.findByDriverIsNull(Pageable.unpaged()))
                 .thenReturn(new PageImpl<>(List.of(farthest, closest, middle)));

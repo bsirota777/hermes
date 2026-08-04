@@ -88,7 +88,7 @@ public class UserController {
     @PostMapping("/me/driver-profile")
     public ResponseEntity<DriverProfileDto> registerAsDriver(
             @AuthenticationPrincipal UserDetails currentUser,
-            @RequestBody DriverRegistrationRequest request) {
+            @Valid @RequestBody DriverRegistrationRequest request) {
         User user = userService.loadUserByEmail(currentUser.getUsername());
         DriverProfileDto profile = userService.registerAsDriver(user, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(profile);
