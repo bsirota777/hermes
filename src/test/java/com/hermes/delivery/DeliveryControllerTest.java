@@ -1,6 +1,6 @@
 package com.hermes.delivery;
 
-import com.hermes.TestcontainersConfig;
+import com.hermes.delivery.dto.CreateDeliveryRequest;
 import com.hermes.delivery.dto.DeliveryDto;
 import com.hermes.delivery.exception.DeliveryAlreadyAssignedException;
 import com.hermes.delivery.exception.DeliveryNotFoundException;
@@ -12,6 +12,7 @@ import com.hermes.user.DriverProfileRepository;
 import com.hermes.user.RecipientProfile;
 import com.hermes.user.SenderProfile;
 import com.hermes.user.User;
+import com.hermes.user.exception.UserNotFoundException;
 import org.junit.jupiter.api.Test;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.*;
@@ -24,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -36,7 +38,7 @@ import java.util.List;
 import java.util.Optional;
 
 @WebMvcTest(DeliveryController.class)
-@Import({SecurityConfig.class, TestcontainersConfig.class})
+@Import(SecurityConfig.class)
 class DeliveryControllerTest {
 
     @Autowired
@@ -340,5 +342,266 @@ class DeliveryControllerTest {
                 .andExpect(status().isForbidden());
 
         verify(deliveryService, never()).updateStatus(anyLong(), any());
+    }
+
+    // --- sent ---
+
+    @Test
+    void getMySentDeliveries_returnsMappedDtos() throws Exception {
+        User user = new User("Alice Sender", "alice@example.com", "secret");
+        user.setId(100L);
+
+        Delivery delivery = buildInTransitDelivery(1L);
+        Page<Delivery> page = new PageImpl<>(List.of(delivery), PageRequest.of(0, 20), 1);
+
+        when(userService.loadUserByEmail("alice@example.com")).thenReturn(user);
+        when(deliveryService.getSentDeliveries(eq(100L), any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/deliveries/sent")
+                        .with(user("alice@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id").value(1));
+    }
+
+    @Test
+    void getMySentDeliveries_returns403_whenUnauthenticated() throws Exception {
+        mockMvc.perform(get("/deliveries/sent"))
+                .andExpect(status().isForbidden());
+    }
+
+// --- received ---
+
+    @Test
+    void getMyReceivedDeliveries_returnsMappedDtos() throws Exception {
+        User user = new User("Bob Recipient", "bob@example.com", "secret");
+        user.setId(200L);
+
+        Delivery delivery = buildInTransitDelivery(2L);
+        Page<Delivery> page = new PageImpl<>(List.of(delivery), PageRequest.of(0, 20), 1);
+
+        when(userService.loadUserByEmail("bob@example.com")).thenReturn(user);
+        when(deliveryService.getReceivedDeliveries(eq(200L), any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/deliveries/received")
+                        .with(user("bob@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id").value(2));
+    }
+
+    @Test
+    void getMyReceivedDeliveries_returns403_whenUnauthenticated() throws Exception {
+        mockMvc.perform(get("/deliveries/received"))
+                .andExpect(status().isForbidden());
+    }
+
+// --- driven ---
+
+    @Test
+    void getMyDrivenDeliveries_returnsMappedDtos_whenCallerIsDriver() throws Exception {
+        User user = new User("Charlie Driver", "charlie@example.com", "secret");
+        user.setId(300L);
+
+        DriverProfile driverProfile = new DriverProfile();
+        driverProfile.setId(50L);
+        driverProfile.setUser(user);
+
+        Delivery delivery = buildInTransitDelivery(3L);
+        Page<Delivery> page = new PageImpl<>(List.of(delivery), PageRequest.of(0, 20), 1);
+
+        when(userService.loadUserByEmail("charlie@example.com")).thenReturn(user);
+        when(driverProfileRepository.findByUserId(300L)).thenReturn(Optional.of(driverProfile));
+        when(deliveryService.getDrivenDeliveries(eq(50L), any(Pageable.class))).thenReturn(page);
+
+        mockMvc.perform(get("/deliveries/driven")
+                        .with(user("charlie@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id").value(3));
+    }
+
+    @Test
+    void getMyDrivenDeliveries_returns404_whenCallerHasNoDriverProfile() throws Exception {
+        User user = new User("Dana NoProfile", "dana@example.com", "secret");
+        user.setId(400L);
+
+        when(userService.loadUserByEmail("dana@example.com")).thenReturn(user);
+        when(driverProfileRepository.findByUserId(400L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/deliveries/driven")
+                        .with(user("dana@example.com")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getMyDrivenDeliveries_returns403_whenUnauthenticated() throws Exception {
+        mockMvc.perform(get("/deliveries/driven"))
+                .andExpect(status().isForbidden());
+    }
+
+// --- queue ---
+
+    @Test
+    void getQueue_returnsMappedDtos_whenCallerIsDriver() throws Exception {
+        User user = new User("Charlie Driver", "charlie@example.com", "secret");
+        user.setId(300L);
+
+        DriverProfile driverProfile = new DriverProfile();
+        driverProfile.setId(50L);
+        driverProfile.setUser(user);
+
+        Delivery delivery = buildInTransitDelivery(4L);
+        Page<Delivery> page = new PageImpl<>(List.of(delivery), PageRequest.of(0, 20), 1);
+
+        when(userService.loadUserByEmail("charlie@example.com")).thenReturn(user);
+        when(driverProfileRepository.findByUserId(300L)).thenReturn(Optional.of(driverProfile));
+        when(deliveryService.getQueueForDriver(eq(driverProfile), eq(0), eq(20))).thenReturn(page);
+
+        mockMvc.perform(get("/deliveries/queue")
+                        .with(user("charlie@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id").value(4));
+    }
+
+    @Test
+    void getQueue_returns404_whenCallerHasNoDriverProfile() throws Exception {
+        User user = new User("Dana NoProfile", "dana@example.com", "secret");
+        user.setId(400L);
+
+        when(userService.loadUserByEmail("dana@example.com")).thenReturn(user);
+        when(driverProfileRepository.findByUserId(400L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/deliveries/queue")
+                        .with(user("dana@example.com")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getQueue_returns403_whenUnauthenticated() throws Exception {
+        mockMvc.perform(get("/deliveries/queue"))
+                .andExpect(status().isForbidden());
+    }
+
+    // --- create delivery ---
+
+    @Test
+    void createDelivery_returns201WithDeliveryDto_onSuccess() throws Exception {
+        User senderUser = new User("Alice Sender", "alice@example.com", "secret");
+        senderUser.setId(100L);
+
+        Delivery createdDelivery = buildInTransitDelivery(5L);
+        createdDelivery.setStatus(DeliveryStatus.CREATED);
+
+        when(userService.loadUserByEmail("alice@example.com")).thenReturn(senderUser);
+        when(deliveryService.createDelivery(eq(senderUser), any(CreateDeliveryRequest.class)))
+                .thenReturn(createdDelivery);
+
+        String requestBody = """
+            {
+              "recipientEmail": "bob@example.com",
+              "pickUpAddress": "123 Pickup St",
+              "dropOffAddress": "456 Dropoff Ave",
+              "senderPhoneNumber": "0400111222",
+              "recipientPhoneNumber": "0400333444",
+              "parcels": [
+                {
+                  "description": "Box",
+                  "lengthCm": 10.00,
+                  "widthCm": 10.00,
+                  "heightCm": 10.00,
+                  "weightKg": 2.00,
+                  "declaredValue": 50.00,
+                  "insured": false
+                }
+              ]
+            }
+            """;
+
+        mockMvc.perform(post("/deliveries")
+                        .with(user("alice@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(5))
+                .andExpect(jsonPath("$.status").value("CREATED"));
+    }
+
+    @Test
+    void createDelivery_returns403_whenUnauthenticated() throws Exception {
+        String requestBody = """
+            {
+              "recipientEmail": "bob@example.com",
+              "pickUpAddress": "123 Pickup St",
+              "dropOffAddress": "456 Dropoff Ave",
+              "senderPhoneNumber": "0400111222",
+              "recipientPhoneNumber": "0400333444",
+              "parcels": []
+            }
+            """;
+
+        mockMvc.perform(post("/deliveries")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createDelivery_returns400_whenValidationFails() throws Exception {
+        // missing required fields (e.g. blank pickUpAddress) should trip @Valid
+        String invalidBody = """
+            {
+              "recipientEmail": "bob@example.com",
+              "pickUpAddress": "",
+              "dropOffAddress": "456 Dropoff Ave",
+              "senderPhoneNumber": "0400111222",
+              "recipientPhoneNumber": "0400333444",
+              "parcels": []
+            }
+            """;
+
+        mockMvc.perform(post("/deliveries")
+                        .with(user("alice@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidBody))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createDelivery_returns404_whenRecipientNotFound() throws Exception {
+        User senderUser = new User("Alice Sender", "alice@example.com", "secret");
+        senderUser.setId(100L);
+
+        when(userService.loadUserByEmail("alice@example.com")).thenReturn(senderUser);
+        when(deliveryService.createDelivery(eq(senderUser), any(CreateDeliveryRequest.class)))
+                .thenThrow(new UserNotFoundException("nobody@example.com"));
+
+        String requestBody = """
+            {
+              "recipientEmail": "nobody@example.com",
+              "pickUpAddress": "123 Pickup St",
+              "dropOffAddress": "456 Dropoff Ave",
+              "senderPhoneNumber": "0400111222",
+              "recipientPhoneNumber": "0400333444",
+              "parcels": [
+                {
+                  "description": "Box",
+                  "lengthCm": 10.00,
+                  "widthCm": 10.00,
+                  "heightCm": 10.00,
+                  "weightKg": 2.00,
+                  "declaredValue": 50.00,
+                  "insured": false
+                }
+              ]
+            }
+            """;
+
+        mockMvc.perform(post("/deliveries")
+                        .with(user("alice@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isNotFound());
     }
 }

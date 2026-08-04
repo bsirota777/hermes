@@ -376,4 +376,135 @@ class DeliveryServiceTest {
 
         verify(deliveryRepository, never()).save(any());
     }
+
+    // ---------- getSentDeliveries ----------
+
+    @Test
+    void getSentDeliveries_returnsPage_whenSenderProfileExists() {
+        SenderProfile sender = buildSender(10L, 1L, "sender@example.com");
+        Pageable pageable = PageRequest.of(0, 20);
+        Delivery delivery = new Delivery();
+        Page<Delivery> expectedPage = new PageImpl<>(List.of(delivery), pageable, 1);
+
+        when(senderProfileRepository.findByUserId(1L)).thenReturn(Optional.of(sender));
+        when(deliveryRepository.findBySenderId(10L, pageable)).thenReturn(expectedPage);
+
+        Page<Delivery> result = deliveryService.getSentDeliveries(1L, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+    }
+
+    @Test
+    void getSentDeliveries_returnsEmptyPage_whenNoSenderProfile() {
+        Pageable pageable = PageRequest.of(0, 20);
+        when(senderProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        Page<Delivery> result = deliveryService.getSentDeliveries(1L, pageable);
+
+        assertThat(result.getContent()).isEmpty();
+        verifyNoInteractions(deliveryRepository);
+    }
+
+// ---------- getReceivedDeliveries ----------
+
+    @Test
+    void getReceivedDeliveries_returnsPage_whenRecipientProfileExists() {
+        RecipientProfile recipient = buildRecipient(20L, 2L, "recipient@example.com");
+        Pageable pageable = PageRequest.of(0, 20);
+        Delivery delivery = new Delivery();
+        Page<Delivery> expectedPage = new PageImpl<>(List.of(delivery), pageable, 1);
+
+        when(recipientProfileRepository.findByUserId(2L)).thenReturn(Optional.of(recipient));
+        when(deliveryRepository.findByRecipientId(20L, pageable)).thenReturn(expectedPage);
+
+        Page<Delivery> result = deliveryService.getReceivedDeliveries(2L, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+    }
+
+    @Test
+    void getReceivedDeliveries_returnsEmptyPage_whenNoRecipientProfile() {
+        Pageable pageable = PageRequest.of(0, 20);
+        when(recipientProfileRepository.findByUserId(2L)).thenReturn(Optional.empty());
+
+        Page<Delivery> result = deliveryService.getReceivedDeliveries(2L, pageable);
+
+        assertThat(result.getContent()).isEmpty();
+        verifyNoInteractions(deliveryRepository);
+    }
+
+// ---------- getDrivenDeliveries ----------
+
+    @Test
+    void getDrivenDeliveries_returnsPageFromRepository() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Delivery delivery = new Delivery();
+        Page<Delivery> expectedPage = new PageImpl<>(List.of(delivery), pageable, 1);
+
+        when(deliveryRepository.findByDriverId(30L, pageable)).thenReturn(expectedPage);
+
+        Page<Delivery> result = deliveryService.getDrivenDeliveries(30L, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+    }
+
+// ---------- getQueueForDriver ----------
+
+    @Test
+    void getQueueForDriver_sortsUnassignedDeliveriesByDistanceFromDriver() {
+        DriverProfile driver = new DriverProfile();
+        driver.setAddress("Melbourne CBD");
+
+        Delivery near = new Delivery();
+        near.setId(1L);
+        near.setPickUpLatitude(-37.8140);
+        near.setPickUpLongitude(144.9633);
+
+        Delivery far = new Delivery();
+        far.setId(2L);
+        far.setPickUpLatitude(-33.8688); // Sydney
+        far.setPickUpLongitude(151.2093);
+
+        when(geocodingService.geocode("Melbourne CBD"))
+                .thenReturn(new Coordinates(-37.8136, 144.9631));
+        when(deliveryRepository.findByDriverIsNull(Pageable.unpaged()))
+                .thenReturn(new PageImpl<>(List.of(far, near)));
+
+        Page<Delivery> result = deliveryService.getQueueForDriver(driver, 0, 10);
+
+        assertThat(result.getContent()).containsExactly(near, far);
+        assertThat(result.getTotalElements()).isEqualTo(2);
+        verify(geocodingService, times(1)).geocode("Melbourne CBD");
+    }
+
+    @Test
+    void getQueueForDriver_appliesPaginationAfterSorting() {
+        DriverProfile driver = new DriverProfile();
+        driver.setAddress("Melbourne CBD");
+
+        Delivery closest = new Delivery();
+        closest.setId(1L);
+        closest.setPickUpLatitude(-37.8136);
+        closest.setPickUpLongitude(144.9631);
+
+        Delivery middle = new Delivery();
+        middle.setId(2L);
+        middle.setPickUpLatitude(-37.9000);
+        middle.setPickUpLongitude(145.0000);
+
+        Delivery farthest = new Delivery();
+        farthest.setId(3L);
+        farthest.setPickUpLatitude(-33.8688);
+        farthest.setPickUpLongitude(151.2093);
+
+        when(geocodingService.geocode("Melbourne CBD"))
+                .thenReturn(new Coordinates(-37.8136, 144.9631));
+        when(deliveryRepository.findByDriverIsNull(Pageable.unpaged()))
+                .thenReturn(new PageImpl<>(List.of(farthest, closest, middle)));
+
+        Page<Delivery> result = deliveryService.getQueueForDriver(driver, 1, 1);
+
+        assertThat(result.getContent()).containsExactly(middle);
+        assertThat(result.getTotalElements()).isEqualTo(3);
+    }
 }

@@ -1,10 +1,8 @@
 package com.hermes.user;
 
 import com.hermes.TestcontainersConfig;
-import com.hermes.user.dto.AccountDto;
-import com.hermes.user.dto.ChangePasswordRequest;
-import com.hermes.user.dto.RegisterRequest;
-import com.hermes.user.dto.UpdateAddressRequest;
+import com.hermes.user.dto.*;
+import com.hermes.user.exception.DriverProfileAlreadyExistsException;
 import com.hermes.user.exception.EmailAlreadyExistsException;
 import com.hermes.wallet.Wallet;
 import com.hermes.wallet.WalletRepository;
@@ -205,5 +203,47 @@ class UserServiceTest {
         assertThat(user.getPassword()).isEqualTo("old-hashed");
         verify(userRepository, never()).save(any());
         verify(passwordEncoder, never()).encode(any());
+    }
+
+    // ---------- registerAsDriver ----------
+
+    @Test
+    void registerAsDriver_createsProfile_whenNoneExists() {
+        User user = new User("jdoe", "jdoe@example.com", "hashed");
+        user.setId(1L);
+
+        DriverRegistrationRequest request = new DriverRegistrationRequest(
+                "1 New St", "0400000000", "LIC123", "ABC123");
+
+        when(driverProfileRepository.existsByUserId(1L)).thenReturn(false);
+        when(driverProfileRepository.save(any(DriverProfile.class))).thenAnswer(inv -> {
+            DriverProfile p = inv.getArgument(0);
+            p.setId(10L);
+            return p;
+        });
+
+        DriverProfileDto result = userService.registerAsDriver(user, request);
+
+        assertThat(result.id()).isEqualTo(10L);
+        assertThat(result.address()).isEqualTo("1 New St");
+        assertThat(result.phoneNumber()).isEqualTo("0400000000");
+        assertThat(result.licenceNumber()).isEqualTo("LIC123");
+        assertThat(result.vehiclePlate()).isEqualTo("ABC123");
+
+        verify(driverProfileRepository).save(any(DriverProfile.class));
+    }
+
+    @Test
+    void registerAsDriver_throws_whenProfileAlreadyExists() {
+        User user = new User("jdoe", "jdoe@example.com", "hashed");
+        user.setId(1L);
+
+        when(driverProfileRepository.existsByUserId(1L)).thenReturn(true);
+
+        assertThrows(DriverProfileAlreadyExistsException.class, () ->
+                userService.registerAsDriver(user, new DriverRegistrationRequest(
+                        "1 New St", "0400000000", "LIC123", "ABC123")));
+
+        verify(driverProfileRepository, never()).save(any());
     }
 }
