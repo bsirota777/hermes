@@ -1,5 +1,6 @@
 package com.hermes.delivery;
 
+import com.hermes.delivery.dto.CompleteDeliveryRequest;
 import com.hermes.delivery.dto.CreateDeliveryRequest;
 import com.hermes.delivery.dto.DeliveryDto;
 import com.hermes.delivery.mapper.DeliveryMapper;
@@ -116,6 +117,7 @@ public class DeliveryController {
 
     @PostMapping("/{deliveryId}/deliver")
     public DeliveryDto markDelivered(@PathVariable Long deliveryId,
+                                     @Valid @RequestBody CompleteDeliveryRequest request,
                                      @AuthenticationPrincipal UserDetails userDetails) {
         // verify the caller is the assigned driver for this delivery
         User user = userService.loadUserByEmail(userDetails.getUsername());
@@ -126,7 +128,7 @@ public class DeliveryController {
             throw new AccessDeniedException("Not the assigned driver for this delivery");
         }
 
-        return DeliveryMapper.toDto(deliveryService.updateStatus(deliveryId, DeliveryStatus.DELIVERED));
+        return DeliveryMapper.toDto(deliveryService.completeDelivery(deliveryId, request.qrCodeToken()));
     }
 
     @PostMapping("/{deliveryId}/cancel")
@@ -152,4 +154,31 @@ public class DeliveryController {
                 .orElseThrow(() -> new DriverProfileNotFoundException(user.getId()));
         return deliveryService.getQueueForDriver(driver, page, size).map(DeliveryMapper::toDto);
     }
+
+    @GetMapping("/{deliveryId}/qrcode")
+    public ResponseEntity<String> getQrCode(@PathVariable Long deliveryId, @AuthenticationPrincipal UserDetails userDetails) {
+        User caller = userService.loadUserByEmail(userDetails.getUsername());
+        Delivery delivery = deliveryService.getById(deliveryId);
+        if (!delivery.getRecipient().getUser().getId().equals(caller.getId())) {
+            throw new AccessDeniedException("Only the recipient can view this delivery's QR code");
+        }
+        return ResponseEntity.ok(delivery.getQrCodeToken());
+    }
+
+/*    @PostMapping("/{deliveryId}/deliver")
+    public ResponseEntity<DeliveryDto> deliverDelivery(
+            @PathVariable Long deliveryId,
+            @Valid @RequestBody CompleteDeliveryRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = userService.loadUserByEmail(userDetails.getUsername());
+        Delivery delivery = deliveryService.getById(deliveryId);
+
+        if (delivery.getDriver() == null ||
+                !delivery.getDriver().getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("Not the assigned driver for this delivery");
+        }
+
+        Delivery result = deliveryService.completeDelivery(deliveryId, request.qrCodeToken());
+        return ResponseEntity.ok(DeliveryMapper.toDto(result));
+    }*/
 }

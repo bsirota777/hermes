@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -82,6 +83,7 @@ class DeliveryRepositoryTest {
         delivery.setDropOffAddress(new Address("456", "Sample Ave", "Shelbyville", "VIC", "3001"));
         delivery.setDeliveryFee(new BigDecimal("25.00"));       // adjust field name/type to match your entity
         delivery.setDriverCommissionRate(new BigDecimal("0.20")); // adjust to match your entity
+        delivery.setQrCodeToken(UUID.randomUUID().toString());
         return delivery;
     }
 

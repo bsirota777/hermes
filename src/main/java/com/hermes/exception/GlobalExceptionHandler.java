@@ -155,6 +155,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
     }
 
+    // GlobalExceptionHandler
+    @ExceptionHandler(InvalidQrCodeException.class)
+    public ResponseEntity<String> handleInvalidQrCode(InvalidQrCodeException ex) {
+        log.warn(ex.getMessage());
+        return ResponseEntity.badRequest().body(ex.getMessage());
+    }
+
     // Catch All
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleUnexpected(Exception ex) {

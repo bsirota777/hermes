@@ -3,6 +3,7 @@ package com.hermes.delivery;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 import com.hermes.delivery.dto.CreateDeliveryRequest;
 import com.hermes.delivery.dto.DeliveryRequestDto;
@@ -122,6 +123,7 @@ public class DeliveryService {
         delivery.setDeliveryFee(deliveryFee);
         delivery.setDriverCommissionRate(DEFAULT_DRIVER_COMMISSION_RATE);
         delivery.setStatus(DeliveryStatus.CREATED);
+        delivery.setQrCodeToken(UUID.randomUUID().toString());
 
         Delivery savedDelivery = deliveryRepository.save(delivery);
 
@@ -261,5 +263,13 @@ public class DeliveryService {
 
         Long senderUserId = delivery.getSender().getUser().getId();
         walletService.credit(senderUserId, refundAmount, WalletTransactionType.REFUND, delivery);
+    }
+
+    public Delivery completeDelivery(Long deliveryId, String scannedToken) {
+        Delivery delivery = getById(deliveryId);
+        if (!delivery.getQrCodeToken().equals(scannedToken)) {
+            throw new InvalidQrCodeException(deliveryId);
+        }
+        return updateStatus(deliveryId, DeliveryStatus.DELIVERED);
     }
 }

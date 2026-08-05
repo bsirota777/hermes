@@ -3,6 +3,8 @@ package com.hermes.delivery;
 import com.hermes.TestcontainersConfig;
 import com.hermes.delivery.dto.CreateDeliveryRequest;
 import com.hermes.delivery.dto.DeliveryRequestDto;
+import com.hermes.delivery.exception.DeliveryNotFoundException;
+import com.hermes.delivery.exception.InvalidQrCodeException;
 import com.hermes.parcel.dto.ParcelDto;
 import com.hermes.delivery.exception.InvalidDeliveryException;
 import com.hermes.parcel.Parcel;
@@ -36,6 +38,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -520,5 +523,77 @@ class DeliveryServiceTest {
 
         assertThat(result.getContent()).containsExactly(middle);
         assertThat(result.getTotalElements()).isEqualTo(3);
+    }
+
+    @Test
+    void completeDelivery_marksDelivered_whenTokenMatches() {
+        User driverUser = new User("Dave Driver", "dave@example.com", "secret");
+        driverUser.setId(50L);
+        DriverProfile driverProfile = new DriverProfile();
+        driverProfile.setUser(driverUser);
+
+        Delivery delivery = new Delivery();
+        delivery.setId(1L);
+        delivery.setStatus(DeliveryStatus.IN_TRANSIT);
+        delivery.setQrCodeToken("abc-123-token");
+        delivery.setDriver(driverProfile);
+        delivery.setDeliveryFee(new BigDecimal("20.00"));
+        delivery.setDriverCommissionRate(new BigDecimal("0.80"));
+
+        when(deliveryRepository.findById(1L)).thenReturn(Optional.of(delivery));
+        when(deliveryRepository.save(any(Delivery.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Delivery result = deliveryService.completeDelivery(1L, "abc-123-token");
+
+        assertThat(result.getStatus()).isEqualTo(DeliveryStatus.DELIVERED);
+        verify(walletService).credit(
+                eq(50L),
+                argThat(amount -> amount.compareTo(new BigDecimal("16.00")) == 0),
+                eq(WalletTransactionType.EARNING),
+                eq(delivery));
+    }
+
+    @Test
+    void completeDelivery_throwsInvalidQrCodeException_whenTokenMismatch() {
+        Delivery delivery = new Delivery();
+        delivery.setId(1L);
+        delivery.setStatus(DeliveryStatus.IN_TRANSIT);
+        delivery.setQrCodeToken("abc-123-token");
+
+        when(deliveryRepository.findById(1L)).thenReturn(Optional.of(delivery));
+
+        assertThrows(InvalidQrCodeException.class,
+                () -> deliveryService.completeDelivery(1L, "wrong-token"));
+
+        verify(deliveryRepository, never()).save(any());
+    }
+
+    @Test
+    void completeDelivery_throwsDeliveryNotFoundException_whenDeliveryMissing() {
+        when(deliveryRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(DeliveryNotFoundException.class,
+                () -> deliveryService.completeDelivery(99L, "any-token"));
+    }
+
+    @Test
+    void createDeliveryRequest_setsUniqueQrCodeToken() {
+        SenderProfile sender = buildSender(1L, 1L, "sender@example.com");
+        RecipientProfile recipient = buildRecipient(2L, 2L, "recipient@example.com");
+
+        DeliveryRequestDto request = new DeliveryRequestDto(
+                sender.getId(), recipient.getId(), PICKUP_ADDRESS, DROPOFF_ADDRESS, DEFAULT_PARCELS);
+
+        when(senderProfileRepository.findById(sender.getId())).thenReturn(Optional.of(sender));
+        when(recipientProfileRepository.findById(recipient.getId())).thenReturn(Optional.of(recipient));
+        when(deliveryRepository.save(any(Delivery.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        stubGeocodingAndPricing();
+
+        Delivery result = deliveryService.createDeliveryRequest(request);
+
+        assertThat(result.getQrCodeToken()).isNotBlank();
+
+        verify(deliveryRepository).save(any(Delivery.class));
     }
 }

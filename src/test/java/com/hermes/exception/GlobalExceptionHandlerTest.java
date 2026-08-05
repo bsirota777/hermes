@@ -14,6 +14,7 @@ import com.hermes.wallet.exception.WalletNotFoundException;
 import com.stripe.exception.StripeException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.BindingResult;
@@ -236,5 +237,15 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).isEqualTo("An unexpected error occurred");
+    }
+
+    @Test
+    void handleInvalidQrCode_returns400() {
+        InvalidQrCodeException ex = new InvalidQrCodeException(1L);
+
+        ResponseEntity<String> response = handler.handleInvalidQrCode(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).isEqualTo(ex.getMessage());
     }
 }

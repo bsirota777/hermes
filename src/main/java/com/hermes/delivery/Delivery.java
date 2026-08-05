@@ -93,6 +93,9 @@ public class Delivery {
     @Column(name = "drop_off_longitude")
     private Double dropOffLongitude;
 
+    @Column(name = "qr_code_token", nullable = false, unique = true)
+    private String qrCodeToken;
+
     @Version
     private Long version; // optimistic locking for the reserve race condition
 }

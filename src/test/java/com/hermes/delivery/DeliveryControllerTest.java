@@ -4,6 +4,7 @@ import com.hermes.delivery.dto.CreateDeliveryRequest;
 import com.hermes.delivery.dto.DeliveryDto;
 import com.hermes.delivery.exception.DeliveryAlreadyAssignedException;
 import com.hermes.delivery.exception.DeliveryNotFoundException;
+import com.hermes.delivery.exception.InvalidQrCodeException;
 import com.hermes.delivery.exception.InvalidStatusTransitionException;
 import com.hermes.delivery.mapper.DeliveryMapper;
 import com.hermes.security.SecurityConfig;
@@ -295,8 +296,11 @@ class DeliveryControllerTest {
         when(deliveryService.getById(1L)).thenReturn(delivery);
 
         mockMvc.perform(post("/deliveries/1/deliver")
-                        .with(user(new org.springframework.security.core.userdetails.User(
-                                "someone-else@example.com", "password", List.of()))))
+                        .with(user("someone-else@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    { "qrCodeToken": "any-token" }
+                    """))
                 .andExpect(status().isForbidden());
 
         verify(deliveryService, never()).updateStatus(anyLong(), any());
@@ -646,5 +650,130 @@ class DeliveryControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getQrCode_returnsToken_whenCallerIsRecipient() throws Exception {
+        User recipientUser = new User("Bob Recipient", "bob@example.com", "secret");
+        recipientUser.setId(200L);
+
+        RecipientProfile recipientProfile = new RecipientProfile();
+        recipientProfile.setUser(recipientUser);
+
+        Delivery delivery = new Delivery();
+        delivery.setId(1L);
+        delivery.setRecipient(recipientProfile);
+        delivery.setQrCodeToken("abc-123-token");
+
+        when(userService.loadUserByEmail("bob@example.com")).thenReturn(recipientUser);
+        when(deliveryService.getById(1L)).thenReturn(delivery);
+
+        mockMvc.perform(get("/deliveries/1/qrcode")
+                        .with(user("bob@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(content().string("abc-123-token"));
+    }
+
+    @Test
+    void getQrCode_returnsForbidden_whenCallerIsNotRecipient() throws Exception {
+        User recipientUser = new User("Bob Recipient", "bob@example.com", "secret");
+        recipientUser.setId(200L);
+        User strangerUser = new User("Eve Stranger", "eve@example.com", "secret");
+        strangerUser.setId(300L);
+
+        RecipientProfile recipientProfile = new RecipientProfile();
+        recipientProfile.setUser(recipientUser);
+
+        Delivery delivery = new Delivery();
+        delivery.setId(1L);
+        delivery.setRecipient(recipientProfile);
+        delivery.setQrCodeToken("abc-123-token");
+
+        when(userService.loadUserByEmail("eve@example.com")).thenReturn(strangerUser);
+        when(deliveryService.getById(1L)).thenReturn(delivery);
+
+        mockMvc.perform(get("/deliveries/1/qrcode")
+                        .with(user("eve@example.com")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getQrCode_returnsNotFound_whenDeliveryDoesNotExist() throws Exception {
+        when(userService.loadUserByEmail("bob@example.com")).thenReturn(new User("Bob", "bob@example.com", "secret"));
+        when(deliveryService.getById(99L)).thenThrow(new DeliveryNotFoundException(99L));
+
+        mockMvc.perform(get("/deliveries/99/qrcode")
+                        .with(user("bob@example.com")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deliverDelivery_returns200_whenTokenMatches() throws Exception {
+        User driverUser = new User("Dave Driver", "driver@example.com", "secret");
+        driverUser.setId(50L);
+        DriverProfile driverProfile = new DriverProfile();
+        driverProfile.setUser(driverUser);
+
+        Delivery delivery = new Delivery();
+        delivery.setId(1L);
+        delivery.setDriver(driverProfile);
+
+        User senderUser = new User("Sam Sender", "sam@example.com", "secret");
+        senderUser.setId(60L);
+        SenderProfile senderProfile = new SenderProfile();
+        senderProfile.setUser(senderUser);
+
+        User recipientUser = new User("Rita Recipient", "rita@example.com", "secret");
+        recipientUser.setId(70L);
+        RecipientProfile recipientProfile = new RecipientProfile();
+        recipientProfile.setUser(recipientUser);
+
+        Delivery delivered = new Delivery();
+        delivered.setId(1L);
+        delivered.setStatus(DeliveryStatus.DELIVERED);
+        delivered.setSender(senderProfile);
+        delivered.setRecipient(recipientProfile);
+        delivered.setDriver(driverProfile);
+
+        when(userService.loadUserByEmail("driver@example.com")).thenReturn(driverUser);
+        when(deliveryService.getById(1L)).thenReturn(delivery);
+        when(deliveryService.completeDelivery(eq(1L), eq("abc-123-token"))).thenReturn(delivered);
+
+        String requestBody = """
+        { "qrCodeToken": "abc-123-token" }
+        """;
+
+        mockMvc.perform(post("/deliveries/1/deliver")
+                        .with(user("driver@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void deliverDelivery_returns400_whenTokenMismatch() throws Exception {
+        User driverUser = new User("Dave Driver", "driver@example.com", "secret");
+        driverUser.setId(50L);
+        DriverProfile driverProfile = new DriverProfile();
+        driverProfile.setUser(driverUser);
+
+        Delivery delivery = new Delivery();
+        delivery.setId(1L);
+        delivery.setDriver(driverProfile);
+
+        when(userService.loadUserByEmail("driver@example.com")).thenReturn(driverUser);
+        when(deliveryService.getById(1L)).thenReturn(delivery);          // <-- this line was missing
+        when(deliveryService.completeDelivery(eq(1L), eq("wrong-token")))
+                .thenThrow(new InvalidQrCodeException(1L));
+
+        String requestBody = """
+        { "qrCodeToken": "wrong-token" }
+        """;
+
+        mockMvc.perform(post("/deliveries/1/deliver")
+                        .with(user("driver@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
     }
 }
