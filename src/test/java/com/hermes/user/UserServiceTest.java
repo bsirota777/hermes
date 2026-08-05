@@ -8,6 +8,7 @@ import com.hermes.wallet.Wallet;
 import com.hermes.wallet.WalletRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -132,7 +133,7 @@ class UserServiceTest {
         when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.of(recipient));
         when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.of(driver));
 
-        userService.updateAddress(user, new UpdateAddressRequest(TEST_ADDRESS));
+        userService.updateAddress(user, new UpdateAddressRequest(TEST_ADDRESS, "0400000000"));
 
         assertThat(sender.getAddress().getStreetNumber()).isEqualTo("1");
         assertThat(sender.getAddress().getStreetName()).isEqualTo("New St");
@@ -159,7 +160,7 @@ class UserServiceTest {
         when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.of(driver));
 
-        userService.updateAddress(user, new UpdateAddressRequest(TEST_ADDRESS));
+        userService.updateAddress(user, new UpdateAddressRequest(TEST_ADDRESS, "0400000000"));
 
         assertThat(driver.getAddress().getStreetNumber()).isEqualTo("1");
         verify(driverProfileRepository).save(driver);
@@ -168,7 +169,7 @@ class UserServiceTest {
     }
 
     @Test
-    void updateAddress_doesNothing_whenNoProfilesExist() {
+    void updateAddress_createsSenderProfile_whenNoProfilesExist() {
         User user = new User("jdoe", "jdoe@example.com", "hashed");
         user.setId(1L);
 
@@ -176,9 +177,22 @@ class UserServiceTest {
         when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
         when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
 
-        userService.updateAddress(user, new UpdateAddressRequest(TEST_ADDRESS));
+        userService.updateAddress(user, new UpdateAddressRequest(TEST_ADDRESS, "0400000000"));
 
-        verify(senderProfileRepository, never()).save(any());
+        ArgumentCaptor<SenderProfile> captor = ArgumentCaptor.forClass(SenderProfile.class);
+        verify(senderProfileRepository).save(captor.capture());
+
+        SenderProfile created = captor.getValue();
+        assertThat(created.getUser()).isEqualTo(user);
+        assertThat(created.getPhoneNumber()).isEqualTo("0400000000");
+
+        Address createdAddress = created.getAddress();
+        assertThat(createdAddress.getStreetNumber()).isEqualTo(TEST_ADDRESS.streetNumber());
+        assertThat(createdAddress.getStreetName()).isEqualTo(TEST_ADDRESS.streetName());
+        assertThat(createdAddress.getSuburb()).isEqualTo(TEST_ADDRESS.suburb());
+        assertThat(createdAddress.getState()).isEqualTo(TEST_ADDRESS.state());
+        assertThat(createdAddress.getPostcode()).isEqualTo(TEST_ADDRESS.postcode());
+
         verify(recipientProfileRepository, never()).save(any());
         verify(driverProfileRepository, never()).save(any());
     }

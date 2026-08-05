@@ -88,7 +88,16 @@ public class UserService implements UserDetailsService {
     }
 
     public AccountDto getAccountDetails(User user) {
-        return new AccountDto(user.getId(), user.getName(), user.getEmail(), user.getRole(), user.getCreatedAt());
+        ContactProfile profile = senderProfileRepository.findByUserId(user.getId())
+                .map(p -> (ContactProfile) p)
+                .or(() -> recipientProfileRepository.findByUserId(user.getId()).map(p -> (ContactProfile) p))
+                .or(() -> driverProfileRepository.findByUserId(user.getId()).map(p -> (ContactProfile) p))
+                .orElse(null);
+
+        AddressDto address = profile != null ? AddressDto.from(profile.getAddress()) : null;
+        String phoneNumber = profile != null ? profile.getPhoneNumber() : null;
+
+        return new AccountDto(user.getId(), user.getName(), user.getEmail(), user.getRole(), user.getCreatedAt(), address, phoneNumber);
     }
 
     @Transactional
@@ -121,11 +130,39 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public void updateAddress(User user, UpdateAddressRequest request) {
-        senderProfileRepository.findByUserId(user.getId())
-                .ifPresent(p -> { p.setAddress(request.address().toEntity()); senderProfileRepository.save(p); });
-        recipientProfileRepository.findByUserId(user.getId())
-                .ifPresent(p -> { p.setAddress(request.address().toEntity()); recipientProfileRepository.save(p); });
-        driverProfileRepository.findByUserId(user.getId())
-                .ifPresent(p -> { p.setAddress(request.address().toEntity()); driverProfileRepository.save(p); });
+        boolean updatedAny = false;
+
+        updatedAny |= senderProfileRepository.findByUserId(user.getId())
+                .map(p -> {
+                    p.setAddress(request.address().toEntity());
+                    p.setPhoneNumber(request.phoneNumber());
+                    senderProfileRepository.save(p);
+                    return true;
+                })
+                .orElse(false);
+        updatedAny |= recipientProfileRepository.findByUserId(user.getId())
+                .map(p -> {
+                    p.setAddress(request.address().toEntity());
+                    p.setPhoneNumber(request.phoneNumber());
+                    recipientProfileRepository.save(p);
+                    return true;
+                })
+                .orElse(false);
+        updatedAny |= driverProfileRepository.findByUserId(user.getId())
+                .map(p -> {
+                    p.setAddress(request.address().toEntity());
+                    p.setPhoneNumber(request.phoneNumber());
+                    driverProfileRepository.save(p);
+                    return true;
+                })
+                .orElse(false);
+
+        if (!updatedAny) {
+            SenderProfile profile = new SenderProfile();
+            profile.setUser(user);
+            profile.setAddress(request.address().toEntity());
+            profile.setPhoneNumber(request.phoneNumber());
+            senderProfileRepository.save(profile);
+        }
     }
 }

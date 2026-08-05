@@ -52,7 +52,7 @@ class UserControllerTest {
     @Test
     void createUser_returns201_withLocationHeader() throws Exception {
         when(userService.registerUser(any()))
-                .thenReturn(new AccountDto(1L, "jdoe", "jdoe@example.com", Role.USER, Instant.now()));
+                .thenReturn(new AccountDto(1L, "jdoe", "jdoe@example.com", Role.USER, Instant.now(), null,  null));
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -87,7 +87,8 @@ class UserControllerTest {
                         .with(user("jdoe@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                {"address":{"streetNumber":"1","streetName":"New St","suburb":"Springfield","state":"VIC","postcode":"3000"}}
+                {"address":{"streetNumber":"1","streetName":"New St","suburb":"Springfield","state":"VIC","postcode":"3000"},
+                "phoneNumber":"0400000000"}
                 """))
                 .andExpect(status().isNoContent());
 
@@ -110,7 +111,7 @@ class UserControllerTest {
                         .with(user("jdoe@example.com"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                {"address":{"streetNumber":"","streetName":"","suburb":"","state":"","postcode":""}}
+                {"address":{"streetNumber":"","streetName":"","suburb":"","state":"","postcode":""},"phoneNumber":"0400000000"}
                 """))
                 .andExpect(status().isBadRequest());
     }

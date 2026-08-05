@@ -9,5 +9,7 @@ public record AccountDto(
         String name,
         String email,
         Role role,
-        Instant createdAt
+        Instant createdAt,
+        AddressDto address,
+        String phoneNumber
 ) {}
