@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -69,6 +70,7 @@ class WalletTransactionRepositoryTest {
         delivery.setDropOffAddress(new Address("456", "Oak Ave", "Shelbyville", "VIC", "3001"));
         delivery.setDeliveryFee(new BigDecimal("25.00"));
         delivery.setDriverCommissionRate(new BigDecimal("0.80"));
+        delivery.setQrCodeToken(UUID.randomUUID().toString());
         delivery.setStatus(DeliveryStatus.CREATED);
 
         return deliveryRepository.save(delivery);
