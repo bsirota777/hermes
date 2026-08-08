@@ -30,7 +30,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable()) // stateless API, no session cookies — safe to disable
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/users", "/login", "/error").permitAll() // registration + login stay open
+                        .requestMatchers("/users", "/login", "/error", "/actuator/health").permitAll() // registration + login stay open
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
