@@ -204,6 +204,7 @@ jobs:
           cmd_options: '-a'
           fail_action: false
           allow_issue_writing: false
+          artifact_name: hermes-zap-report
 
       - name: Stop containers
         if: always()
