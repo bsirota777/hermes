@@ -133,9 +133,6 @@ jobs:
     name: DAST (OWASP ZAP baseline)
     runs-on: ubuntu-latest
     needs: build-image
-    #permissions:
-     # contents: read
-     # issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -193,6 +190,10 @@ jobs:
           exit 1
 
       - name: ZAP Baseline Scan
+        # continue-on-error: the action's own bundled artifact-upload step has a
+        # known bug (400 "artifact name is not valid" regardless of name chosen)
+        # unrelated to the scan itself; we upload the reports ourselves below instead
+        continue-on-error: true
         uses: zaproxy/action-baseline@v0.12.0
         with:
           target: 'http://localhost:8080'
@@ -200,11 +201,9 @@ jobs:
           # endpoints yet — good first pass for headers/CORS/info-leak issues.
           # An authenticated full scan is a natural next step once you want
           # deeper coverage of /deliveries, /admin, etc.
-          #rules_file_name: '.zap/rules.tsv'
           cmd_options: '-a'
           fail_action: false
           allow_issue_writing: false
-          artifact_name: ''
 
       - name: Upload ZAP reports
         if: always()
@@ -215,6 +214,7 @@ jobs:
             report_json.json
             report_md.md
             report_html.html
+          if-no-files-found: warn
 
       - name: Stop containers
         if: always()
