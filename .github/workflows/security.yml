@@ -190,7 +190,6 @@ jobs:
           exit 1
 
       - name: ZAP Baseline Scan
-          - name: ZAP Baseline Scan
         continue-on-error: true
         uses: zaproxy/action-baseline@v0.12.0
         with:
