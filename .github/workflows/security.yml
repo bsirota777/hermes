@@ -190,17 +190,11 @@ jobs:
           exit 1
 
       - name: ZAP Baseline Scan
-        # continue-on-error: the action's own bundled artifact-upload step has a
-        # known bug (400 "artifact name is not valid" regardless of name chosen)
-        # unrelated to the scan itself; we upload the reports ourselves below instead
+          - name: ZAP Baseline Scan
         continue-on-error: true
         uses: zaproxy/action-baseline@v0.12.0
         with:
           target: 'http://localhost:8080'
-          # Baseline is passive-only (no auth), so it won't reach JWT-protected
-          # endpoints yet — good first pass for headers/CORS/info-leak issues.
-          # An authenticated full scan is a natural next step once you want
-          # deeper coverage of /deliveries, /admin, etc.
           cmd_options: '-a'
           fail_action: false
           allow_issue_writing: false
