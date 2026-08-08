@@ -11,6 +11,7 @@ ext['logback.version'] = '1.5.36'
 ext['tomcat.version'] = '11.0.23'
 ext['jackson-2-bom.version'] = '2.21.5'
 ext['jackson-bom.version'] = '3.1.5'
+ext['flyway.version'] = '13.0.0'
 
 java {
 	toolchain {
