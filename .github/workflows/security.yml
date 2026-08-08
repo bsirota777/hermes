@@ -1,0 +1,208 @@
+name: Security Scans
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly scan to catch newly-disclosed CVEs even with no code changes
+    - cron: '0 3 * * 1'
+
+jobs:
+  sast:
+    name: SAST (CodeQL)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java
+
+      - name: Build (no tests, just compile for CodeQL to analyze)
+        run: ./gradlew build -x test
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  snyk-dependencies:
+    name: Snyk - Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Run Snyk to check for vulnerable dependencies
+        uses: snyk/actions/gradle@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+  build-image:
+    name: Build image for scanning
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set image tag
+        id: meta
+        run: echo "tag=hermes:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      # Build locally (not pushed) purely so Snyk/ZAP have an image/instance to scan.
+      # Your existing deploy workflow handles the real ghcr.io push separately.
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save image as artifact
+        run: docker save ${{ steps.meta.outputs.tag }} -o /tmp/hermes-image.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-image
+          path: /tmp/hermes-image.tar
+          retention-days: 1
+
+  snyk-container:
+    name: Snyk - Container Scan
+    runs-on: ubuntu-latest
+    needs: build-image
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hermes-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/hermes-image.tar
+
+      - name: Run Snyk to check the Docker image
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ needs.build-image.outputs.image-tag }}
+          args: --severity-threshold=high --file=Dockerfile
+
+  dast:
+    name: DAST (OWASP ZAP baseline)
+    runs-on: ubuntu-latest
+    needs: build-image
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hermes-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/hermes-image.tar
+
+      - name: Log in to Docker Hub
+        # Avoids Docker Hub anonymous pull rate limits when the Postgres
+        # testcontainer/service image is pulled here, same fix as the main pipeline
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Start Postgres
+        run: |
+          docker run -d --name hermes-db \
+            -e POSTGRES_DB=delivery_app_db \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -p 5432:5432 \
+            postgres:16-alpine
+
+      - name: Start Hermes
+        run: |
+          docker run -d --name hermes-app \
+            --network host \
+            -e SPRING_PROFILES_ACTIVE=ci \
+            -e SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/delivery_app_db \
+            -e SPRING_DATASOURCE_USERNAME=postgres \
+            -e SPRING_DATASOURCE_PASSWORD=postgres \
+            -e STRIPE_SECRET_KEY=sk_test_placeholder \
+            -e GOOGLE_MAPS_API_KEY=placeholder \
+            ${{ needs.build-image.outputs.image-tag }}
+
+      - name: Wait for Hermes to be healthy
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/actuator/health; then
+              echo "Hermes is up"
+              exit 0
+            fi
+            echo "Waiting for Hermes..."
+            sleep 3
+          done
+          echo "Hermes did not become healthy in time"
+          docker logs hermes-app
+          exit 1
+
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:8080'
+          # Baseline is passive-only (no auth), so it won't reach JWT-protected
+          # endpoints yet — good first pass for headers/CORS/info-leak issues.
+          # An authenticated full scan is a natural next step once you want
+          # deeper coverage of /deliveries, /admin, etc.
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+          fail_action: false
+
+      - name: Stop containers
+        if: always()
+        run: |
+          docker stop hermes-app hermes-db || true
+          docker rm hermes-app hermes-db || true
