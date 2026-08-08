@@ -200,11 +200,21 @@ jobs:
           # endpoints yet — good first pass for headers/CORS/info-leak issues.
           # An authenticated full scan is a natural next step once you want
           # deeper coverage of /deliveries, /admin, etc.
-          rules_file_name: '.zap/rules.tsv'
+          #rules_file_name: '.zap/rules.tsv'
           cmd_options: '-a'
           fail_action: false
           allow_issue_writing: false
-          artifact_name: hermes-zap-report
+          artifact_name: ''
+
+      - name: Upload ZAP reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-zap-report
+          path: |
+            report_json.json
+            report_md.md
+            report_html.html
 
       - name: Stop containers
         if: always()
