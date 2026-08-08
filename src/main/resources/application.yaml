@@ -15,6 +15,12 @@ spring:
 logging:
   level:
     org.springframework.security: DEBUG
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
 
 stripe:
   secret-key: ${STRIPE_SECRET_KEY}
