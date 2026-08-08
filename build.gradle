@@ -7,6 +7,11 @@ plugins {
 group = 'com.hermes'
 version = '0.0.1-SNAPSHOT'
 
+ext['logback.version'] = '1.5.36'
+ext['tomcat.version'] = '11.0.23'
+ext['jackson-2-bom.version'] = '2.21.5'
+ext['jackson-bom.version'] = '3.1.5'
+
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(21)
@@ -25,15 +30,11 @@ dependencyManagement {
 }
 
 dependencies {
-	constraints {
-		implementation('com.fasterxml.jackson.core:jackson-databind:2.18.8') {
-			because 'CVE-2026-54512 - jjwt-jackson 0.12.6 pulls a vulnerable transitive version'
-		}
-	}
 
 	implementation 'org.apache.camel.springboot:camel-spring-boot-starter'
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
-	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'org.flywaydb:flyway-core:13.0.0'   // was 12.4.0
+	implementation 'org.postgresql:postgresql:42.7.12'  // was 42.7.11
 	implementation 'com.google.maps:google-maps-services:2.2.0' // check for latest on Maven Central
 	implementation 'org.springframework.boot:spring-boot-h2console'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
