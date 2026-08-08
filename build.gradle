@@ -35,6 +35,7 @@ dependencies {
 	implementation 'org.apache.camel.springboot:camel-spring-boot-starter'
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
 	implementation 'org.flywaydb:flyway-core:13.0.0'   // was 12.4.0
+	implementation 'org.flywaydb:flyway-database-postgresql'
 	implementation 'org.postgresql:postgresql:42.7.12'  // was 42.7.11
 	implementation 'com.google.maps:google-maps-services:2.2.0' // check for latest on Maven Central
 	implementation 'org.springframework.boot:spring-boot-h2console'
