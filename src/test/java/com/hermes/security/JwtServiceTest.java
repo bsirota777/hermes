@@ -54,7 +54,11 @@ class JwtServiceTest {
     @Test
     void extractEmail_withTamperedToken_throws() {
         String token = jwtService.generateToken("driver@example.com");
-        String tampered = token.substring(0, token.length() - 1) + (token.endsWith("A") ? "B" : "A");
+        String[] parts = token.split("\\.");
+        // Corrupt a character in the middle of the payload segment
+        String tamperedPayload = parts[1].substring(0, parts[1].length() - 1)
+                + (parts[1].endsWith("A") ? "B" : "A");
+        String tampered = parts[0] + "." + tamperedPayload + "." + parts[2];
 
         org.junit.jupiter.api.Assertions.assertThrows(
                 Exception.class,
