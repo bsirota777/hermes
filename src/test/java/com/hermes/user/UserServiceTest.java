@@ -18,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import com.hermes.user.exception.DriverProfileNotFoundException;
 
 import java.util.List;
 import java.util.Optional;
@@ -270,6 +271,115 @@ class UserServiceTest {
         assertThrows(DriverProfileAlreadyExistsException.class, () ->
                 userService.registerAsDriver(user, new DriverRegistrationRequest(
                         TEST_ADDRESS, "0400000000", "LIC123", "ABC123")));
+
+        verify(driverProfileRepository, never()).save(any());
+    }
+
+    // ---------- getAccountDetails (isDriver) ----------
+
+    @Test
+    void getAccountDetails_setsIsDriverTrue_whenDriverProfileExists() {
+        User user = new User("jdoe", "jdoe@example.com", "hashed");
+        user.setId(1L);
+
+        when(senderProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(driverProfileRepository.existsByUserId(1L)).thenReturn(true);
+
+        AccountDto result = userService.getAccountDetails(user);
+
+        assertThat(result.isDriver()).isTrue();
+    }
+
+    @Test
+    void getAccountDetails_setsIsDriverFalse_whenNoDriverProfile() {
+        User user = new User("jdoe", "jdoe@example.com", "hashed");
+        user.setId(1L);
+
+        when(senderProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(recipientProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+        when(driverProfileRepository.existsByUserId(1L)).thenReturn(false);
+
+        AccountDto result = userService.getAccountDetails(user);
+
+        assertThat(result.isDriver()).isFalse();
+    }
+
+    // ---------- getDriverProfile ----------
+
+    @Test
+    void getDriverProfile_returnsDto_whenProfileExists() {
+        User user = new User("jdoe", "jdoe@example.com", "hashed");
+        user.setId(1L);
+
+        DriverProfile profile = new DriverProfile();
+        profile.setId(10L);
+        profile.setAddress(TEST_ADDRESS.toEntity());
+        profile.setPhoneNumber("0400000000");
+        profile.setLicenceNumber("LIC123");
+        profile.setVehiclePlate("ABC123");
+
+        when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
+
+        DriverProfileDto result = userService.getDriverProfile(user);
+
+        assertThat(result.id()).isEqualTo(10L);
+        assertThat(result.licenceNumber()).isEqualTo("LIC123");
+        assertThat(result.vehiclePlate()).isEqualTo("ABC123");
+    }
+
+    @Test
+    void getDriverProfile_throws_whenProfileMissing() {
+        User user = new User("jdoe", "jdoe@example.com", "hashed");
+        user.setId(1L);
+
+        when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        assertThrows(DriverProfileNotFoundException.class, () ->
+                userService.getDriverProfile(user));
+    }
+
+    // ---------- updateDriverProfile ----------
+
+    @Test
+    void updateDriverProfile_updatesAndSaves_whenProfileExists() {
+        User user = new User("jdoe", "jdoe@example.com", "hashed");
+        user.setId(1L);
+
+        DriverProfile profile = new DriverProfile();
+        profile.setId(10L);
+
+        when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
+
+        DriverRegistrationRequest request = new DriverRegistrationRequest(
+                TEST_ADDRESS, "0499999999", "LIC999", "XYZ999");
+
+        DriverProfileDto result = userService.updateDriverProfile(user, request);
+
+        assertThat(profile.getPhoneNumber()).isEqualTo("0499999999");
+        assertThat(profile.getLicenceNumber()).isEqualTo("LIC999");
+        assertThat(profile.getVehiclePlate()).isEqualTo("XYZ999");
+        assertThat(profile.getAddress().getStreetNumber()).isEqualTo("1");
+
+        assertThat(result.id()).isEqualTo(10L);
+        assertThat(result.licenceNumber()).isEqualTo("LIC999");
+        assertThat(result.vehiclePlate()).isEqualTo("XYZ999");
+
+        verify(driverProfileRepository).save(profile);
+    }
+
+    @Test
+    void updateDriverProfile_throws_whenProfileMissing() {
+        User user = new User("jdoe", "jdoe@example.com", "hashed");
+        user.setId(1L);
+
+        when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.empty());
+
+        assertThrows(DriverProfileNotFoundException.class, () ->
+                userService.updateDriverProfile(user, new DriverRegistrationRequest(
+                        TEST_ADDRESS, "0499999999", "LIC999", "XYZ999")));
 
         verify(driverProfileRepository, never()).save(any());
     }

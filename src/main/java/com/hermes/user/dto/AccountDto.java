@@ -11,5 +11,6 @@ public record AccountDto(
         Role role,
         Instant createdAt,
         AddressDto address,
-        String phoneNumber
+        String phoneNumber,
+        Boolean isDriver
 ) {}

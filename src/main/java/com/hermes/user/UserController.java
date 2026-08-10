@@ -94,6 +94,23 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(profile);
     }
 
+    @PatchMapping("/me/driver-profile")
+    public ResponseEntity<DriverProfileDto> updateDriverProfile(
+            @AuthenticationPrincipal UserDetails currentUser,
+            @Valid @RequestBody DriverRegistrationRequest request) {
+        User user = userService.loadUserByEmail(currentUser.getUsername());
+        DriverProfileDto profile = userService.updateDriverProfile(user, request);
+        return ResponseEntity.ok(profile);
+    }
+
+    @GetMapping("/me/driver-profile")
+    public ResponseEntity<DriverProfileDto> getDriverProfile(
+            @AuthenticationPrincipal UserDetails currentUser) {
+        User user = userService.loadUserByEmail(currentUser.getUsername());
+        DriverProfileDto profile = userService.getDriverProfile(user);
+        return ResponseEntity.ok(profile);
+    }
+
     @PatchMapping("/me/address")
     public ResponseEntity<Void> updateMyAddress(
             @AuthenticationPrincipal UserDetails currentUser,

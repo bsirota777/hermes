@@ -2,6 +2,7 @@ package com.hermes.user;
 
 import com.hermes.user.dto.*;
 import com.hermes.user.exception.DriverProfileAlreadyExistsException;
+import com.hermes.user.exception.DriverProfileNotFoundException;
 import com.hermes.user.exception.EmailAlreadyExistsException;
 import com.hermes.wallet.Wallet;
 import com.hermes.wallet.WalletRepository;
@@ -97,7 +98,7 @@ public class UserService implements UserDetailsService {
         AddressDto address = profile != null ? AddressDto.from(profile.getAddress()) : null;
         String phoneNumber = profile != null ? profile.getPhoneNumber() : null;
 
-        return new AccountDto(user.getId(), user.getName(), user.getEmail(), user.getRole(), user.getCreatedAt(), address, phoneNumber);
+        return new AccountDto(user.getId(), user.getName(), user.getEmail(), user.getRole(), user.getCreatedAt(), address, phoneNumber,driverProfileRepository.existsByUserId(user.getId()));
     }
 
     @Transactional
@@ -126,6 +127,29 @@ public class UserService implements UserDetailsService {
 
         return new DriverProfileDto(saved.getId(), AddressDto.from(saved.getAddress()),
                 saved.getPhoneNumber(), saved.getLicenceNumber(), saved.getVehiclePlate());
+    }
+
+    public DriverProfileDto updateDriverProfile(User user, DriverRegistrationRequest request) {
+        DriverProfile profile = driverProfileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new DriverProfileNotFoundException(user.getId()));
+
+        profile.setAddress(request.address().toEntity());
+        profile.setPhoneNumber(request.phoneNumber());
+        profile.setLicenceNumber(request.licenceNumber());
+        profile.setVehiclePlate(request.vehiclePlate());
+
+        driverProfileRepository.save(profile);
+
+        return new DriverProfileDto(profile.getId(), AddressDto.from(profile.getAddress()),
+                profile.getPhoneNumber(), profile.getLicenceNumber(), profile.getVehiclePlate());
+    }
+
+    public DriverProfileDto getDriverProfile(User user) {
+        DriverProfile profile = driverProfileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new DriverProfileNotFoundException(user.getId()));
+
+        return new DriverProfileDto(profile.getId(), AddressDto.from(profile.getAddress()),
+                profile.getPhoneNumber(), profile.getLicenceNumber(), profile.getVehiclePlate());
     }
 
     @Transactional

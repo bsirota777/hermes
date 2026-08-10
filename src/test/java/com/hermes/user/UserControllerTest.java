@@ -31,6 +31,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.hermes.user.exception.DriverProfileNotFoundException;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+
 @WebMvcTest(UserController.class)
 @ActiveProfiles("test")
 @Import({SecurityConfig.class, TestcontainersConfig.class})
@@ -52,7 +55,7 @@ class UserControllerTest {
     @Test
     void createUser_returns201_withLocationHeader() throws Exception {
         when(userService.registerUser(any()))
-                .thenReturn(new AccountDto(1L, "jdoe", "jdoe@example.com", Role.USER, Instant.now(), null,  null));
+                .thenReturn(new AccountDto(1L, "jdoe", "jdoe@example.com", Role.USER, Instant.now(), null,  null, false));
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -176,5 +179,105 @@ class UserControllerTest {
                 {"address":{"streetNumber":"1","streetName":"New St","suburb":"Springfield","state":"VIC","postcode":"3000"},"phoneNumber":"0400000000","licenceNumber":"LIC123","vehiclePlate":"ABC123"}
                 """))
                 .andExpect(status().isConflict());
+    }
+
+    // --- get driver profile ---
+
+    @Test
+    void getDriverProfile_returns200_withDriverProfileDto_onSuccess() throws Exception {
+        User user = new User("jdoe", "jdoe@example.com", "secret");
+        user.setId(1L);
+
+        when(userService.loadUserByEmail("jdoe@example.com")).thenReturn(user);
+        when(userService.getDriverProfile(user))
+                .thenReturn(new DriverProfileDto(10L, TEST_ADDRESS, "0400000000", "LIC123", "ABC123"));
+
+        mockMvc.perform(get("/users/me/driver-profile")
+                        .with(user("jdoe@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(10))
+                .andExpect(jsonPath("$.licenceNumber").value("LIC123"))
+                .andExpect(jsonPath("$.vehiclePlate").value("ABC123"));
+    }
+
+    @Test
+    void getDriverProfile_returns403_whenUnauthenticated() throws Exception {
+        mockMvc.perform(get("/users/me/driver-profile"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getDriverProfile_returns404_whenProfileMissing() throws Exception {
+        User user = new User("jdoe", "jdoe@example.com", "secret");
+        user.setId(1L);
+
+        when(userService.loadUserByEmail("jdoe@example.com")).thenReturn(user);
+        when(userService.getDriverProfile(user))
+                .thenThrow(new DriverProfileNotFoundException(1L));
+
+        mockMvc.perform(get("/users/me/driver-profile")
+                        .with(user("jdoe@example.com")))
+                .andExpect(status().isNotFound());
+    }
+
+    // --- update driver profile ---
+
+    @Test
+    void updateDriverProfile_returns200_withDriverProfileDto_onSuccess() throws Exception {
+        User user = new User("jdoe", "jdoe@example.com", "secret");
+        user.setId(1L);
+
+        when(userService.loadUserByEmail("jdoe@example.com")).thenReturn(user);
+        when(userService.updateDriverProfile(eq(user), any(DriverRegistrationRequest.class)))
+                .thenReturn(new DriverProfileDto(10L, TEST_ADDRESS, "0499999999", "LIC999", "XYZ999"));
+
+        mockMvc.perform(patch("/users/me/driver-profile")
+                        .with(user("jdoe@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                {"address":{"streetNumber":"1","streetName":"New St","suburb":"Springfield","state":"VIC","postcode":"3000"},"phoneNumber":"0499999999","licenceNumber":"LIC999","vehiclePlate":"XYZ999"}
+                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.licenceNumber").value("LIC999"))
+                .andExpect(jsonPath("$.vehiclePlate").value("XYZ999"));
+    }
+
+    @Test
+    void updateDriverProfile_returns403_whenUnauthenticated() throws Exception {
+        mockMvc.perform(patch("/users/me/driver-profile")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                {"address":{"streetNumber":"1","streetName":"New St","suburb":"Springfield","state":"VIC","postcode":"3000"},"phoneNumber":"0499999999","licenceNumber":"LIC999","vehiclePlate":"XYZ999"}
+                """))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void updateDriverProfile_returns400_whenAddressBlank() throws Exception {
+        mockMvc.perform(patch("/users/me/driver-profile")
+                        .with(user("jdoe@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                {"address":{"streetNumber":"","streetName":"","suburb":"","state":"","postcode":""},"phoneNumber":"0499999999","licenceNumber":"LIC999","vehiclePlate":"XYZ999"}
+                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateDriverProfile_returns404_whenProfileMissing() throws Exception {
+        User user = new User("jdoe", "jdoe@example.com", "secret");
+        user.setId(1L);
+
+        when(userService.loadUserByEmail("jdoe@example.com")).thenReturn(user);
+        when(userService.updateDriverProfile(eq(user), any(DriverRegistrationRequest.class)))
+                .thenThrow(new DriverProfileNotFoundException(1L));
+
+        mockMvc.perform(patch("/users/me/driver-profile")
+                        .with(user("jdoe@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                {"address":{"streetNumber":"1","streetName":"New St","suburb":"Springfield","state":"VIC","postcode":"3000"},"phoneNumber":"0499999999","licenceNumber":"LIC999","vehiclePlate":"XYZ999"}
+                """))
+                .andExpect(status().isNotFound());
     }
 }
