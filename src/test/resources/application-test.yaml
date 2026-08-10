@@ -11,6 +11,9 @@ logging:
 stripe:
   secret-key: ${STRIPE_SECRET_KEY:sk_test_dummy_key_for_tests}
 
+nominatim:
+  user-agent: hermes-test-agent
+
 google:
   maps:
     api-key: ${GOOGLE_MAPS_API_KEY:dummy-test-key-not-real}
