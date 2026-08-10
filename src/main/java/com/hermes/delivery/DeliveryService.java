@@ -179,7 +179,7 @@ public class DeliveryService {
 
     public Page<Delivery> getQueueForDriver(DriverProfile driver, int page, int size) {
         List<Delivery> unassigned = deliveryRepository.findByDriverIsNull(Pageable.unpaged()).getContent();
-        Coordinates driverCoords = geocodingService.geocode(driver.getAddress().toFormattedString());
+        Coordinates driverCoords = new Coordinates(driver.getLatitude(), driver.getLongitude());
 
         List<Delivery> sorted = unassigned.stream()
                 .sorted(Comparator.comparingDouble(d -> distanceFromDriver(driverCoords, d)))

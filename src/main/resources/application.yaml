@@ -30,6 +30,9 @@ pricing:
   rate-per-km: 1
   rate-per-kg: 0.50
 
+nominatim:
+  user-agent: ${NOMINATIM_USER_AGENT}
+
 google:
   maps:
     api-key: ${GOOGLE_MAPS_API_KEY}

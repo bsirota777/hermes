@@ -10,8 +10,12 @@ public record AddressDto(
         @NotBlank String state,
         @NotBlank String postcode
 ) {
-    public String toFormattedString() {
+    /*public String toFormattedString() {
         return String.format("%s %s, %s %s %s", streetNumber, streetName, suburb, state, postcode);
+    }*/
+    public String toFormattedString() {
+        System.out.println("toFormattedString ****");
+        return String.format("%s %s, %s %s %s, Australia", streetNumber, streetName, suburb, state, postcode);
     }
 
     public Address toEntity() {

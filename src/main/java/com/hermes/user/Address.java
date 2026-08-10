@@ -36,6 +36,6 @@ public class Address {
     private String postcode;
 
     public String toFormattedString() {
-        return String.format("%s %s, %s %s %s", streetNumber, streetName, suburb, state, postcode);
+        return String.format("%s %s, %s %s %s, Australia", streetNumber, streetName, suburb, state, postcode);
     }
 }

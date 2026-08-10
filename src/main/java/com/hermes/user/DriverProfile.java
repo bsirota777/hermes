@@ -26,4 +26,10 @@ public class DriverProfile extends ContactProfile {
 
     @OneToMany(mappedBy = "driver")
     private List<Delivery> deliveriesAsDriver;
+
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
 }

@@ -1,5 +1,7 @@
 package com.hermes.user;
 
+import com.hermes.geocoding.Coordinates;
+import com.hermes.geocoding.GeocodingService;
 import com.hermes.user.dto.*;
 import com.hermes.user.exception.DriverProfileAlreadyExistsException;
 import com.hermes.user.exception.DriverProfileNotFoundException;
@@ -29,6 +31,7 @@ public class UserService implements UserDetailsService {
     private final DriverProfileRepository driverProfileRepository;
     private final SenderProfileRepository senderProfileRepository;
     private final RecipientProfileRepository recipientProfileRepository;
+    private final GeocodingService geocodingService;
 
     @Transactional
     public AccountDto registerUser(RegisterRequest request) {
@@ -116,24 +119,34 @@ public class UserService implements UserDetailsService {
             throw new DriverProfileAlreadyExistsException(user.getId());
         }
 
+        Address address = request.address().toEntity();
+        Coordinates coords = geocodingService.geocode(address.toFormattedString());
+
         DriverProfile profile = new DriverProfile();
         profile.setUser(user);
-        profile.setAddress(request.address().toEntity());
+        profile.setAddress(address);
         profile.setPhoneNumber(request.phoneNumber());
         profile.setLicenceNumber(request.licenceNumber());
         profile.setVehiclePlate(request.vehiclePlate());
+        profile.setLatitude(coords.latitude());
+        profile.setLongitude(coords.longitude());
 
-        DriverProfile saved = driverProfileRepository.save(profile);
+        driverProfileRepository.save(profile);
 
-        return new DriverProfileDto(saved.getId(), AddressDto.from(saved.getAddress()),
-                saved.getPhoneNumber(), saved.getLicenceNumber(), saved.getVehiclePlate());
+        return new DriverProfileDto(profile.getId(), AddressDto.from(profile.getAddress()),
+                profile.getPhoneNumber(), profile.getLicenceNumber(), profile.getVehiclePlate());
     }
 
     public DriverProfileDto updateDriverProfile(User user, DriverRegistrationRequest request) {
         DriverProfile profile = driverProfileRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new DriverProfileNotFoundException(user.getId()));
 
-        profile.setAddress(request.address().toEntity());
+        Address newAddress = request.address().toEntity();
+        Coordinates coords = geocodingService.geocode(newAddress.toFormattedString());
+
+        profile.setAddress(newAddress);
+        profile.setLatitude(coords.latitude());
+        profile.setLongitude(coords.longitude());
         profile.setPhoneNumber(request.phoneNumber());
         profile.setLicenceNumber(request.licenceNumber());
         profile.setVehiclePlate(request.vehiclePlate());

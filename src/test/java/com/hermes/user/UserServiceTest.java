@@ -1,6 +1,8 @@
 package com.hermes.user;
 
 import com.hermes.TestcontainersConfig;
+import com.hermes.geocoding.Coordinates;
+import com.hermes.geocoding.GeocodingService;
 import com.hermes.user.dto.*;
 import com.hermes.user.exception.DriverProfileAlreadyExistsException;
 import com.hermes.user.exception.EmailAlreadyExistsException;
@@ -47,11 +49,15 @@ class UserServiceTest {
     private SenderProfileRepository senderProfileRepository;
     @Mock
     private RecipientProfileRepository recipientProfileRepository;
+    @Mock
+    private GeocodingService geocodingService;
     @InjectMocks
     UserService userService;
 
     private static final AddressDto TEST_ADDRESS =
             new AddressDto("1", "New St", "Springfield", "VIC", "3000");
+    private static final Coordinates TEST_COORDINATES =
+            new Coordinates(-37.8136, 144.9631);
 
     @Test
     void register_hashesPassword_andSaves() {
@@ -240,6 +246,7 @@ class UserServiceTest {
                 TEST_ADDRESS, "0400000000", "LIC123", "ABC123");
 
         when(driverProfileRepository.existsByUserId(1L)).thenReturn(false);
+        when(geocodingService.geocode(any())).thenReturn(TEST_COORDINATES);
         when(driverProfileRepository.save(any(DriverProfile.class))).thenAnswer(inv -> {
             DriverProfile p = inv.getArgument(0);
             p.setId(10L);
@@ -352,6 +359,7 @@ class UserServiceTest {
         profile.setId(10L);
 
         when(driverProfileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
+        when(geocodingService.geocode(any())).thenReturn(TEST_COORDINATES);
 
         DriverRegistrationRequest request = new DriverRegistrationRequest(
                 TEST_ADDRESS, "0499999999", "LIC999", "XYZ999");
@@ -362,6 +370,8 @@ class UserServiceTest {
         assertThat(profile.getLicenceNumber()).isEqualTo("LIC999");
         assertThat(profile.getVehiclePlate()).isEqualTo("XYZ999");
         assertThat(profile.getAddress().getStreetNumber()).isEqualTo("1");
+        assertThat(profile.getLatitude()).isEqualTo(TEST_COORDINATES.latitude());
+        assertThat(profile.getLongitude()).isEqualTo(TEST_COORDINATES.longitude());
 
         assertThat(result.id()).isEqualTo(10L);
         assertThat(result.licenceNumber()).isEqualTo("LIC999");
