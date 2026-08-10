@@ -251,6 +251,8 @@ class DeliveryServiceTest {
     void updateStatus_refunds80Percent_whenCancelledWithDriverAssigned() {
         SenderProfile sender = buildSender(1L, 1L, "sender@example.com");
         DriverProfile driver = new DriverProfile();
+        driver.setLatitude(-37.8136);   // or whatever coords the test's distance assertions expect
+        driver.setLongitude(144.9631);
         driver.setId(1L);
         driver.setUser(buildUser(2L, "driver@example.com"));
 
@@ -466,6 +468,9 @@ class DeliveryServiceTest {
     @Test
     void getQueueForDriver_sortsUnassignedDeliveriesByDistanceFromDriver() {
         DriverProfile driver = new DriverProfile();
+        driver.setLatitude(-37.8136);   // or whatever coords the test's distance assertions expect
+        driver.setLongitude(144.9631);
+
         Address driverAddress = new Address("1", "Collins St", "Melbourne", "VIC", "3000");
         driver.setAddress(driverAddress);
         String formattedDriverAddress = driverAddress.toFormattedString();
@@ -480,8 +485,6 @@ class DeliveryServiceTest {
         far.setPickUpLatitude(-33.8688); // Sydney
         far.setPickUpLongitude(151.2093);
 
-        when(geocodingService.geocode(formattedDriverAddress))
-                .thenReturn(new Coordinates(-37.8136, 144.9631));
         when(deliveryRepository.findByDriverIsNull(Pageable.unpaged()))
                 .thenReturn(new PageImpl<>(List.of(far, near)));
 
@@ -489,12 +492,14 @@ class DeliveryServiceTest {
 
         assertThat(result.getContent()).containsExactly(near, far);
         assertThat(result.getTotalElements()).isEqualTo(2);
-        verify(geocodingService, times(1)).geocode(formattedDriverAddress);
     }
 
     @Test
     void getQueueForDriver_appliesPaginationAfterSorting() {
         DriverProfile driver = new DriverProfile();
+        driver.setLatitude(-37.8136);   // or whatever coords the test's distance assertions expect
+        driver.setLongitude(144.9631);
+
         Address driverAddress = new Address("1", "Collins St", "Melbourne", "VIC", "3000");
         driver.setAddress(driverAddress);
         String formattedDriverAddress = driverAddress.toFormattedString();
@@ -513,9 +518,7 @@ class DeliveryServiceTest {
         farthest.setId(3L);
         farthest.setPickUpLatitude(-33.8688);
         farthest.setPickUpLongitude(151.2093);
-
-        when(geocodingService.geocode(formattedDriverAddress))
-                .thenReturn(new Coordinates(-37.8136, 144.9631));
+        
         when(deliveryRepository.findByDriverIsNull(Pageable.unpaged()))
                 .thenReturn(new PageImpl<>(List.of(farthest, closest, middle)));
 
@@ -530,6 +533,8 @@ class DeliveryServiceTest {
         User driverUser = new User("Dave Driver", "dave@example.com", "secret");
         driverUser.setId(50L);
         DriverProfile driverProfile = new DriverProfile();
+        driverProfile.setLatitude(-37.8136);   // or whatever coords the test's distance assertions expect
+        driverProfile.setLongitude(144.9631);
         driverProfile.setUser(driverUser);
 
         Delivery delivery = new Delivery();
