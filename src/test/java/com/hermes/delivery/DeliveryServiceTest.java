@@ -518,7 +518,7 @@ class DeliveryServiceTest {
         farthest.setId(3L);
         farthest.setPickUpLatitude(-33.8688);
         farthest.setPickUpLongitude(151.2093);
-        
+
         when(deliveryRepository.findByDriverIsNull(Pageable.unpaged()))
                 .thenReturn(new PageImpl<>(List.of(farthest, closest, middle)));
 
