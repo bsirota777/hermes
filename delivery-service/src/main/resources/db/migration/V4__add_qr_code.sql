@@ -1,0 +1,1 @@
+ALTER TABLE deliveries ADD COLUMN qr_code_token VARCHAR(255) NOT NULL UNIQUE;

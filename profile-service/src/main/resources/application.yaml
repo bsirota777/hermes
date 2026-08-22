@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: HermesUser
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hermes_delivery_db
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+flyway:
+  enabled: true
+  locations: classpath:db/migration/user
+
+pricing:
+  base-fee: 2.00
+  rate-per-km: 1
+  rate-per-kg: 0.50
+
+nominatim:
+  user-agent: ${NOMINATIM_USER_AGENT}
+
+google:
+  maps:
+    api-key: ${GOOGLE_MAPS_API_KEY}
