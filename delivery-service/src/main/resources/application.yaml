@@ -38,10 +38,10 @@ google:
     api-key: ${GOOGLE_MAPS_API_KEY}
 
 user-service:
-  base-url: ${USER_SERVICE_BASE_URL:8081}
+  base-url: ${USER_SERVICE_BASE_URL:http://localhost:8081}
 
 profile-service:
-  base-url: ${PROFILE_SERVICE_BASE_URL:8082}
+  base-url: ${PROFILE_SERVICE_BASE_URL:http://localhost:8082}
 
 wallet-service:
-  base-url: ${WALLET_SERVICE_BASE_URL:http:8083}
+  base-url: ${WALLET_SERVICE_BASE_URL:http://localhost:8083}

@@ -1,4 +1,4 @@
-package com.hermes.profile.security;
+package com.hermes.delivery.security;
 
 import com.hermes.common.security.JwtAuthFilter;
 import com.hermes.common.security.JwtValidator;
@@ -29,7 +29,6 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/actuator/health", "/error").permitAll()
-                        .requestMatchers("/internal/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
