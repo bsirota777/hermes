@@ -1,35 +1,15 @@
-package com.hermes.user;
+package com.hermes.profile;
 
-import com.hermes.delivery.Delivery;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.List;
-
-@Entity
-@Table(name = "driver_profiles")
-@Getter
-@Setter
+@Entity @Table(name="driver_profiles") @Getter @Setter
 public class DriverProfile extends ContactProfile {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; // shared PK with User
-
-    @OneToOne
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
-
-    private String licenceNumber;
-    private String vehiclePlate;
-    // driver-only fields
-
-    @OneToMany(mappedBy = "driver")
-    private List<Delivery> deliveriesAsDriver;
-
-    @Column
-    private Double latitude;
-
-    @Column
-    private Double longitude;
+    @Id @GeneratedValue(strategy=GenerationType.IDENTITY) private Long id;
+    @Column(name="user_id", nullable=false, unique=true) private Long userId;
+    @Column(name="licence_number", nullable=false) private String licenceNumber;
+    @Column(name="vehicle_plate", nullable=false) private String vehiclePlate;
+    @Column private Double latitude;
+    @Column private Double longitude;
 }

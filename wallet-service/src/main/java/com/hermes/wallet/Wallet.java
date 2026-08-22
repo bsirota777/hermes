@@ -1,6 +1,5 @@
 package com.hermes.wallet;
 
-import com.hermes.user.User;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -23,14 +22,19 @@ public class Wallet {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
     @NotNull
-    private User user;
+    @Column(name = "user_id", nullable = false, unique = true)
+    private Long userId;
 
     @NotNull
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal balance = BigDecimal.ZERO;
+
+    @Column(name = "stripe_account_id")
+    private String stripeAccountId;
+
+    @Column(name = "stripe_payouts_enabled", nullable = false)
+    private boolean stripePayoutsEnabled = false;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
@@ -40,7 +44,7 @@ public class Wallet {
     @Column(nullable = false)
     private Instant updatedAt;
 
-    public Wallet(User user) {
-        this.user = user;
+    public Wallet(Long userId) {
+        this.userId = userId;
     }
 }

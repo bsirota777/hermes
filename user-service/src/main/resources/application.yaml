@@ -12,6 +12,10 @@ spring:
   flyway:
     enabled: true
 
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+
 logging:
   level:
     org.springframework.security: DEBUG
@@ -22,13 +26,8 @@ management:
       exposure:
         include: health
 
-admin:
-  seed:
-    email: ${ADMIN_SEED_EMAIL:admin@hermes.local}
-    password: ${ADMIN_SEED_PASSWORD:}
+server:
+  port: ${SERVER_PORT:8081}
 
-flyway:
-  enabled: true
-  locations: classpath:db/migration/user
-
-#FUTURE JWT config — since User Service is the one issuing tokens (JwtService), whatever property it reads for the signing secret/expiry needs to live here. If it's currently just an env var read directly in code, fine
+profile-service:
+  base-url: ${PROFILE_SERVICE_BASE_URL:8082}

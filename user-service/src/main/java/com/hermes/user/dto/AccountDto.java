@@ -9,8 +9,5 @@ public record AccountDto(
         String name,
         String email,
         Role role,
-        Instant createdAt,
-        AddressDto address,
-        String phoneNumber,
-        Boolean isDriver
+        Instant createdAt
 ) {}

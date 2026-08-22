@@ -1,6 +1,6 @@
-package com.hermes.user.dto;
+package com.hermes.profile.dto;
 
-import com.hermes.user.Address;
+import com.hermes.profile.Address;
 import jakarta.validation.constraints.NotBlank;
 
 public record AddressDto(

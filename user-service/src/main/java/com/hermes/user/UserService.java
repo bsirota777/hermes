@@ -1,13 +1,14 @@
 package com.hermes.user;
 
-import com.hermes.geocoding.Coordinates;
-import com.hermes.geocoding.GeocodingService;
-import com.hermes.user.dto.*;
-import com.hermes.user.exception.DriverProfileAlreadyExistsException;
-import com.hermes.user.exception.DriverProfileNotFoundException;
+import com.hermes.user.dto.AccountDto;
+import com.hermes.user.dto.ChangePasswordRequest;
+import com.hermes.user.dto.RegisterRequest;
+import com.hermes.user.dto.UpdateUserRequest;
+import com.hermes.user.dto.UpdateAddressRequest;
+import com.hermes.user.dto.DriverProfileDto;
+import com.hermes.user.dto.DriverRegistrationRequest;
+import com.hermes.user.client.ProfileServiceClient;
 import com.hermes.user.exception.EmailAlreadyExistsException;
-import com.hermes.wallet.Wallet;
-import com.hermes.wallet.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -27,11 +28,7 @@ public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final WalletRepository walletRepository;
-    private final DriverProfileRepository driverProfileRepository;
-    private final SenderProfileRepository senderProfileRepository;
-    private final RecipientProfileRepository recipientProfileRepository;
-    private final GeocodingService geocodingService;
+    private final ProfileServiceClient profileServiceClient;
 
     @Transactional
     public AccountDto registerUser(RegisterRequest request) {
@@ -41,32 +38,34 @@ public class UserService implements UserDetailsService {
 
         User user = new User(request.name(), request.email(), passwordEncoder.encode(request.password()));
         User savedUser = userRepository.save(user);
-
-        Wallet wallet = new Wallet(savedUser);
-        walletRepository.save(wallet);
-
-        return getAccountDetails(savedUser);
+        return toAccountDto(savedUser);
     }
 
-    public List<User> searchUsers(String name) {
-        if (name == null || name.isBlank()) {
-            return userRepository.findAll();
-        }
-        return userRepository.findByNameContainingIgnoreCase(name);
+    public List<AccountDto> searchUsers(String name) {
+        List<User> users = name == null || name.isBlank()
+                ? userRepository.findAll()
+                : userRepository.findByNameContainingIgnoreCase(name);
+        return users.stream().map(this::toAccountDto).toList();
     }
 
-    public Optional<User> getUserById(Long id) {
-        return userRepository.findById(id);
+    public Optional<AccountDto> getUserById(Long id) {
+        return userRepository.findById(id).map(this::toAccountDto);
     }
 
-    public Optional<User> updateUser(Long id, User updatedUser) {
+    @Transactional
+    public Optional<AccountDto> updateUser(Long id, UpdateUserRequest request) {
         return userRepository.findById(id).map(existingUser -> {
-            existingUser.setName(updatedUser.getName());
-            existingUser.setEmail(updatedUser.getEmail());
-            return userRepository.save(existingUser);
+            if (!existingUser.getEmail().equalsIgnoreCase(request.email())
+                    && userRepository.existsByEmail(request.email())) {
+                throw new EmailAlreadyExistsException(request.email());
+            }
+            existingUser.setName(request.name());
+            existingUser.setEmail(request.email());
+            return toAccountDto(userRepository.save(existingUser));
         });
     }
 
+    @Transactional
     public boolean deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
             return false;
@@ -83,6 +82,7 @@ public class UserService implements UserDetailsService {
                 .withUsername(user.getEmail())
                 .password(user.getPassword())
                 .authorities("ROLE_" + user.getRole().name())
+                .disabled(user.isBanned())
                 .build();
     }
 
@@ -92,16 +92,7 @@ public class UserService implements UserDetailsService {
     }
 
     public AccountDto getAccountDetails(User user) {
-        ContactProfile profile = senderProfileRepository.findByUserId(user.getId())
-                .map(p -> (ContactProfile) p)
-                .or(() -> recipientProfileRepository.findByUserId(user.getId()).map(p -> (ContactProfile) p))
-                .or(() -> driverProfileRepository.findByUserId(user.getId()).map(p -> (ContactProfile) p))
-                .orElse(null);
-
-        AddressDto address = profile != null ? AddressDto.from(profile.getAddress()) : null;
-        String phoneNumber = profile != null ? profile.getPhoneNumber() : null;
-
-        return new AccountDto(user.getId(), user.getName(), user.getEmail(), user.getRole(), user.getCreatedAt(), address, phoneNumber,driverProfileRepository.existsByUserId(user.getId()));
+        return toAccountDto(user);
     }
 
     @Transactional
@@ -113,93 +104,37 @@ public class UserService implements UserDetailsService {
         userRepository.save(user);
     }
 
-    @Transactional
+
     public DriverProfileDto registerAsDriver(User user, DriverRegistrationRequest request) {
-        if (driverProfileRepository.existsByUserId(user.getId())) {
-            throw new DriverProfileAlreadyExistsException(user.getId());
-        }
-
-        Address address = request.address().toEntity();
-        Coordinates coords = geocodingService.geocode(address.toFormattedString());
-
-        DriverProfile profile = new DriverProfile();
-        profile.setUser(user);
-        profile.setAddress(address);
-        profile.setPhoneNumber(request.phoneNumber());
-        profile.setLicenceNumber(request.licenceNumber());
-        profile.setVehiclePlate(request.vehiclePlate());
-        profile.setLatitude(coords.latitude());
-        profile.setLongitude(coords.longitude());
-
-        driverProfileRepository.save(profile);
-
-        return new DriverProfileDto(profile.getId(), AddressDto.from(profile.getAddress()),
-                profile.getPhoneNumber(), profile.getLicenceNumber(), profile.getVehiclePlate());
+        return profileServiceClient.registerDriver(user.getId(), request);
     }
 
     public DriverProfileDto updateDriverProfile(User user, DriverRegistrationRequest request) {
-        DriverProfile profile = driverProfileRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new DriverProfileNotFoundException(user.getId()));
-
-        Address newAddress = request.address().toEntity();
-        Coordinates coords = geocodingService.geocode(newAddress.toFormattedString());
-
-        profile.setAddress(newAddress);
-        profile.setLatitude(coords.latitude());
-        profile.setLongitude(coords.longitude());
-        profile.setPhoneNumber(request.phoneNumber());
-        profile.setLicenceNumber(request.licenceNumber());
-        profile.setVehiclePlate(request.vehiclePlate());
-
-        driverProfileRepository.save(profile);
-
-        return new DriverProfileDto(profile.getId(), AddressDto.from(profile.getAddress()),
-                profile.getPhoneNumber(), profile.getLicenceNumber(), profile.getVehiclePlate());
+        return profileServiceClient.updateDriver(user.getId(), request);
     }
 
     public DriverProfileDto getDriverProfile(User user) {
-        DriverProfile profile = driverProfileRepository.findByUserId(user.getId())
-                .orElseThrow(() -> new DriverProfileNotFoundException(user.getId()));
-
-        return new DriverProfileDto(profile.getId(), AddressDto.from(profile.getAddress()),
-                profile.getPhoneNumber(), profile.getLicenceNumber(), profile.getVehiclePlate());
+        return profileServiceClient.getDriver(user.getId());
     }
 
-    @Transactional
     public void updateAddress(User user, UpdateAddressRequest request) {
-        boolean updatedAny = false;
+        profileServiceClient.updateAddress(user.getId(), request);
+    }
 
-        updatedAny |= senderProfileRepository.findByUserId(user.getId())
-                .map(p -> {
-                    p.setAddress(request.address().toEntity());
-                    p.setPhoneNumber(request.phoneNumber());
-                    senderProfileRepository.save(p);
-                    return true;
-                })
-                .orElse(false);
-        updatedAny |= recipientProfileRepository.findByUserId(user.getId())
-                .map(p -> {
-                    p.setAddress(request.address().toEntity());
-                    p.setPhoneNumber(request.phoneNumber());
-                    recipientProfileRepository.save(p);
-                    return true;
-                })
-                .orElse(false);
-        updatedAny |= driverProfileRepository.findByUserId(user.getId())
-                .map(p -> {
-                    p.setAddress(request.address().toEntity());
-                    p.setPhoneNumber(request.phoneNumber());
-                    driverProfileRepository.save(p);
-                    return true;
-                })
-                .orElse(false);
+    public Optional<com.hermes.common.user.UserSummary> findUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(user -> new com.hermes.common.user.UserSummary(user.getId(), user.getName(), user.getEmail()));
+    }
 
-        if (!updatedAny) {
-            SenderProfile profile = new SenderProfile();
-            profile.setUser(user);
-            profile.setAddress(request.address().toEntity());
-            profile.setPhoneNumber(request.phoneNumber());
-            senderProfileRepository.save(profile);
-        }
+    public com.hermes.common.user.UserSummary toUserSummary(User user) {
+        return new com.hermes.common.user.UserSummary(user.getId(), user.getName(), user.getEmail());
+    }
+
+    public com.hermes.common.user.UserSummary toUserSummary(AccountDto accountDto) {
+        return new com.hermes.common.user.UserSummary(accountDto.id(), accountDto.name(), accountDto.email());
+    }
+
+    private AccountDto toAccountDto(User user) {
+        return new AccountDto(user.getId(), user.getName(), user.getEmail(), user.getRole(), user.getCreatedAt());
     }
 }

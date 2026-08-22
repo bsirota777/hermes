@@ -1,6 +1,6 @@
 package com.hermes.wallet;
 
-import com.hermes.delivery.Delivery;
+import com.hermes.common.wallet.WalletTransactionType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -27,7 +27,7 @@ public class WalletTransaction {
     @NotNull
     private Wallet wallet;
 
-    // Positive for credits (EARNING, REFUND), negative for debits (CASHOUT, PAYMENT)
+    // Positive for credits (EARNING, REFUND), negative for debits (PAYOUT)
     @NotNull
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
@@ -37,18 +37,17 @@ public class WalletTransaction {
     @Column(nullable = false)
     private WalletTransactionType type;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "related_delivery_id")
-    private Delivery relatedDelivery;
+    @Column(name = "related_delivery_id")
+    private Long relatedDeliveryId;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    public WalletTransaction(Wallet wallet, BigDecimal amount, WalletTransactionType type, Delivery relatedDelivery) {
+    public WalletTransaction(Wallet wallet, BigDecimal amount, WalletTransactionType type, Long relatedDeliveryId) {
         this.wallet = wallet;
         this.amount = amount;
         this.type = type;
-        this.relatedDelivery = relatedDelivery;
+        this.relatedDeliveryId = relatedDeliveryId;
     }
 }

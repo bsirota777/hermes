@@ -3,7 +3,7 @@ CREATE TABLE wallet_transactions (
   wallet_id BIGINT NOT NULL REFERENCES wallets(id),
   amount NUMERIC(12, 2) NOT NULL,
   type VARCHAR(20) NOT NULL,
-  related_delivery_id BIGINT REFERENCES deliveries(id),
+  related_delivery_id BIGINT,
   created_at TIMESTAMP NOT NULL
 );
 

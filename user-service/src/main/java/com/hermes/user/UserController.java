@@ -1,11 +1,15 @@
 package com.hermes.user;
 
-import com.hermes.user.dto.*;
+import com.hermes.user.dto.AccountDto;
+import com.hermes.user.dto.ChangePasswordRequest;
+import com.hermes.user.dto.RegisterRequest;
+import com.hermes.user.dto.UpdateUserRequest;
+import com.hermes.user.dto.DriverProfileDto;
+import com.hermes.user.dto.DriverRegistrationRequest;
+import com.hermes.user.dto.UpdateAddressRequest;
 import jakarta.validation.Valid;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Bean;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -23,37 +27,33 @@ public class UserController {
         this.userService = userService;
     }
 
-    // CREATE
     @PostMapping
     public ResponseEntity<AccountDto> createUser(@Valid @RequestBody RegisterRequest request) {
         AccountDto created = userService.registerUser(request);
-        URI location = URI.create("/users/" + created.id());
-        return ResponseEntity.created(location).body(created);
+        return ResponseEntity.created(URI.create("/users/" + created.id())).body(created);
     }
 
-    // RETRIEVE (search by name, partial or full match; omit param for all users)
     @GetMapping
-    public List<User> searchUsers(@RequestParam(required = false) String name) {
+    public List<AccountDto> searchUsers(@RequestParam(required = false) String name) {
         return userService.searchUsers(name);
     }
 
-    // RETRIEVE single by id
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+    public ResponseEntity<AccountDto> getUserById(@PathVariable Long id) {
         return userService.getUserById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // UPDATE
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
-        return userService.updateUser(id, user)
+    public ResponseEntity<AccountDto> updateUser(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateUserRequest request) {
+        return userService.updateUser(id, request)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // DELETE
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         return userService.deleteUser(id)
@@ -61,37 +61,24 @@ public class UserController {
                 : ResponseEntity.notFound().build();
     }
 
-    @Bean
-    CommandLineRunner debugBeans(org.springframework.context.ApplicationContext ctx) {
-        return args -> {
-            for (String name : ctx.getBeanNamesForType(UserService.class)) {
-                System.out.println("UserService bean: " + name);
-            }
-        };
-    }
-
     @GetMapping("/me")
     public AccountDto getMyAccount(@AuthenticationPrincipal UserDetails currentUser) {
-        User user = userService.loadUserByEmail(currentUser.getUsername());
-        return userService.getAccountDetails(user);
+        return userService.getAccountDetails(userService.loadUserByEmail(currentUser.getUsername()));
     }
 
     @PutMapping("/me/password")
     public ResponseEntity<Void> changeMyPassword(
             @AuthenticationPrincipal UserDetails currentUser,
-            @RequestBody ChangePasswordRequest request) {
-        User user = userService.loadUserByEmail(currentUser.getUsername());
-        userService.changePassword(user, request);
+            @Valid @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(userService.loadUserByEmail(currentUser.getUsername()), request);
         return ResponseEntity.noContent().build();
     }
-
     @PostMapping("/me/driver-profile")
     public ResponseEntity<DriverProfileDto> registerAsDriver(
             @AuthenticationPrincipal UserDetails currentUser,
             @Valid @RequestBody DriverRegistrationRequest request) {
         User user = userService.loadUserByEmail(currentUser.getUsername());
-        DriverProfileDto profile = userService.registerAsDriver(user, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(profile);
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.registerAsDriver(user, request));
     }
 
     @PatchMapping("/me/driver-profile")
@@ -99,16 +86,14 @@ public class UserController {
             @AuthenticationPrincipal UserDetails currentUser,
             @Valid @RequestBody DriverRegistrationRequest request) {
         User user = userService.loadUserByEmail(currentUser.getUsername());
-        DriverProfileDto profile = userService.updateDriverProfile(user, request);
-        return ResponseEntity.ok(profile);
+        return ResponseEntity.ok(userService.updateDriverProfile(user, request));
     }
 
     @GetMapping("/me/driver-profile")
     public ResponseEntity<DriverProfileDto> getDriverProfile(
             @AuthenticationPrincipal UserDetails currentUser) {
         User user = userService.loadUserByEmail(currentUser.getUsername());
-        DriverProfileDto profile = userService.getDriverProfile(user);
-        return ResponseEntity.ok(profile);
+        return ResponseEntity.ok(userService.getDriverProfile(user));
     }
 
     @PatchMapping("/me/address")
@@ -119,4 +104,5 @@ public class UserController {
         userService.updateAddress(user, request);
         return ResponseEntity.noContent().build();
     }
+
 }
