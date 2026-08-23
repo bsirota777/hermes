@@ -1,5 +1,5 @@
 plugins {
-	id 'org.springframework.boot' version '4.1.0' apply false
+	id 'org.springframework.boot' version '4.1.1' apply false
 	id 'io.spring.dependency-management' version '1.1.7' apply false
 }
 
@@ -13,6 +13,19 @@ subprojects {
 	dependencyManagement {
 		imports {
 			mavenBom "org.testcontainers:testcontainers-bom:1.20.4"
+		}
+		// Pinned ahead of Spring Boot's own BOM to close specific high-severity
+		// CVEs flagged by Snyk (SNYK-JAVA-CHQOSLOGBACK-17675439,
+		// SNYK-JAVA-COMFASTERXMLJACKSONCORE-17972608, SNYK-JAVA-ORGAPACHETOMCATEMBED-17732890,
+		// SNYK-JAVA-ORGAPACHETOMCATEMBED-17733746, SNYK-JAVA-ORGPOSTGRESQL-17874248,
+		// SNYK-JAVA-TOOLSJACKSONCORE-17972609). Revisit/remove once a Spring Boot
+		// patch release pins these versions (or newer) itself.
+		dependencies {
+			dependency 'ch.qos.logback:logback-core:1.5.36'
+			dependency 'com.fasterxml.jackson.core:jackson-databind:2.21.5'
+			dependency 'org.apache.tomcat.embed:tomcat-embed-core:11.0.23'
+			dependency 'org.postgresql:postgresql:42.7.12'
+			dependency 'tools.jackson.core:jackson-databind:3.1.5'
 		}
 	}
 
