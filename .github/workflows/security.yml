@@ -26,6 +26,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Set up Gradle (with dependency caching)
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Make gradlew executable
         run: chmod +x gradlew
 
@@ -49,6 +52,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Gradle (with dependency caching)
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Make gradlew executable
         run: chmod +x gradlew
@@ -136,290 +142,95 @@ jobs:
     name: DAST (OWASP ZAP baseline)
     runs-on: ubuntu-latest
     needs: build-image
-
     strategy:
       matrix:
         include:
           - service: user-service
             port: 8081
-
-          - service: profile-service
-            port: 8082
-
-          - service: wallet-service
-            port: 8083
-
+            db_name: hermes_user_db
           - service: delivery-service
             port: 8084
-
+            db_name: hermes_delivery_db
+          - service: profile-service
+            port: 8082
+            db_name: hermes_profile_db
+          - service: wallet-service
+            port: 8083
+            db_name: hermes_wallet_db
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ------------------------------------------------------------
-      # Download all four service images
-      # ------------------------------------------------------------
-      - name: Download user-service image
+      - name: Download image artifact
         uses: actions/download-artifact@v4
         with:
-          name: hermes-user-service-image
-          path: /tmp/user-service
+          name: hermes-${{ matrix.service }}-image
+          path: /tmp
 
-      - name: Download profile-service image
-        uses: actions/download-artifact@v4
-        with:
-          name: hermes-profile-service-image
-          path: /tmp/profile-service
+      - name: Load image
+        run: docker load -i /tmp/hermes-${{ matrix.service }}-image.tar
 
-      - name: Download wallet-service image
-        uses: actions/download-artifact@v4
-        with:
-          name: hermes-wallet-service-image
-          path: /tmp/wallet-service
-
-      - name: Download delivery-service image
-        uses: actions/download-artifact@v4
-        with:
-          name: hermes-delivery-service-image
-          path: /tmp/delivery-service
-
-      # ------------------------------------------------------------
-      # Load all four images
-      # ------------------------------------------------------------
-      - name: Load Docker images
-        run: |
-          docker load -i /tmp/user-service/hermes-user-service-image.tar
-          docker load -i /tmp/profile-service/hermes-profile-service-image.tar
-          docker load -i /tmp/wallet-service/hermes-wallet-service-image.tar
-          docker load -i /tmp/delivery-service/hermes-delivery-service-image.tar
-
-      # ------------------------------------------------------------
-      # Docker Hub login
-      # ------------------------------------------------------------
       - name: Log in to Docker Hub
+        # Avoids Docker Hub anonymous pull rate limits when the Postgres
+        # service image is pulled here, same fix as the main pipeline
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # ------------------------------------------------------------
-      # Generate temporary CI credentials
-      #
-      # These are NOT GitHub secrets and are never persisted.
-      # ------------------------------------------------------------
-      - name: Generate CI credentials
-        id: ci-secrets
-        shell: bash
+      - name: Start Postgres
         run: |
-          {
-            echo "user_db_password=$(openssl rand -hex 32)"
-            echo "profile_db_password=$(openssl rand -hex 32)"
-            echo "wallet_db_password=$(openssl rand -hex 32)"
-            echo "delivery_db_password=$(openssl rand -hex 32)"
-            echo "jwt_secret=$(openssl rand -base64 32)"
-          } >> "$GITHUB_OUTPUT"
-
-      # ------------------------------------------------------------
-      # Create isolated Docker network
-      # ------------------------------------------------------------
-      - name: Create CI network
-        run: docker network create hermes-ci
-
-      # ------------------------------------------------------------
-      # Start four independent PostgreSQL databases
-      # ------------------------------------------------------------
-      - name: Start user database
-        run: |
-          docker run -d \
-            --name user-db \
-            --network hermes-ci \
-            -e POSTGRES_DB=hermes_user_db \
+          docker run -d --name hermes-db \
+            -e POSTGRES_DB=${{ matrix.db_name }} \
             -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD="${{ steps.ci-secrets.outputs.user_db_password }}" \
+            -e POSTGRES_PASSWORD=postgres \
+            -p 5432:5432 \
             postgres:16-alpine
 
-      - name: Start profile database
+      # Every possible property placeholder is passed unconditionally to every
+      # service - a service that doesn't reference a given one (e.g. STRIPE_SECRET_KEY
+      # for user-service) just ignores it, which keeps this step identical across the matrix.
+      - name: Start ${{ matrix.service }}
         run: |
-          docker run -d \
-            --name profile-db \
-            --network hermes-ci \
-            -e POSTGRES_DB=hermes_profile_db \
-            -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD="${{ steps.ci-secrets.outputs.profile_db_password }}" \
-            postgres:16-alpine
-
-      - name: Start wallet database
-        run: |
-          docker run -d \
-            --name wallet-db \
-            --network hermes-ci \
-            -e POSTGRES_DB=hermes_wallet_db \
-            -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD="${{ steps.ci-secrets.outputs.wallet_db_password }}" \
-            postgres:16-alpine
-
-      - name: Start delivery database
-        run: |
-          docker run -d \
-            --name delivery-db \
-            --network hermes-ci \
-            -e POSTGRES_DB=hermes_delivery_db \
-            -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD="${{ steps.ci-secrets.outputs.delivery_db_password }}" \
-            postgres:16-alpine
-
-      # ------------------------------------------------------------
-      # Wait for databases
-      # ------------------------------------------------------------
-      - name: Wait for databases
-        shell: bash
-        run: |
-          for db in user-db profile-db wallet-db delivery-db; do
-            echo "Waiting for $db..."
-
-            for i in $(seq 1 30); do
-              if docker exec "$db" pg_isready -U postgres >/dev/null 2>&1; then
-                echo "$db is ready"
-                break
-              fi
-
-              if [ "$i" -eq 30 ]; then
-                echo "$db failed to become ready"
-                docker logs "$db"
-                exit 1
-              fi
-
-              sleep 2
-            done
-          done
-
-      # ------------------------------------------------------------
-      # Start user-service
-      # ------------------------------------------------------------
-      - name: Start user-service
-        run: |
-          docker run -d \
-            --name user-service \
-            --network hermes-ci \
-            -p 8081:8081 \
+          docker run -d --name hermes-app \
+            --network host \
             -e SPRING_PROFILES_ACTIVE=ci \
-            -e SERVER_PORT=8081 \
+            -e SERVER_PORT=${{ matrix.port }} \
             -e DB_USER=postgres \
-            -e DB_PASSWORD="${{ steps.ci-secrets.outputs.user_db_password }}" \
-            -e SPRING_DATASOURCE_URL=jdbc:postgresql://user-db:5432/hermes_user_db \
-            -e JWT_SECRET="${{ steps.ci-secrets.outputs.jwt_secret }}" \
-            -e PROFILE_SERVICE_BASE_URL=http://profile-service:8082 \
-            "hermes-user-service:${{ github.sha }}"
-
-      # ------------------------------------------------------------
-      # Start profile-service
-      # ------------------------------------------------------------
-      - name: Start profile-service
-        run: |
-          docker run -d \
-            --name profile-service \
-            --network hermes-ci \
-            -p 8082:8082 \
-            -e SPRING_PROFILES_ACTIVE=ci \
-            -e SERVER_PORT=8082 \
-            -e DB_USER=postgres \
-            -e DB_PASSWORD="${{ steps.ci-secrets.outputs.profile_db_password }}" \
-            -e SPRING_DATASOURCE_URL=jdbc:postgresql://profile-db:5432/hermes_profile_db \
-            -e JWT_SECRET="${{ steps.ci-secrets.outputs.jwt_secret }}" \
-            -e USER_SERVICE_BASE_URL=http://user-service:8081 \
-            -e NOMINATIM_USER_AGENT="${{ secrets.NOMINATIM_USER_AGENT }}" \
-            "hermes-profile-service:${{ github.sha }}"
-
-      # ------------------------------------------------------------
-      # Start wallet-service
-      # ------------------------------------------------------------
-      - name: Start wallet-service
-        run: |
-          docker run -d \
-            --name wallet-service \
-            --network hermes-ci \
-            -p 8083:8083 \
-            -e SPRING_PROFILES_ACTIVE=ci \
-            -e SERVER_PORT=8083 \
-            -e DB_USER=postgres \
-            -e DB_PASSWORD="${{ steps.ci-secrets.outputs.wallet_db_password }}" \
-            -e SPRING_DATASOURCE_URL=jdbc:postgresql://wallet-db:5432/hermes_wallet_db \
-            -e JWT_SECRET="${{ steps.ci-secrets.outputs.jwt_secret }}" \
-            -e STRIPE_SECRET_KEY=sk_test_placeholder \
-            "hermes-wallet-service:${{ github.sha }}"
-
-      # ------------------------------------------------------------
-      # Start delivery-service
-      # ------------------------------------------------------------
-      - name: Start delivery-service
-        run: |
-          docker run -d \
-            --name delivery-service \
-            --network hermes-ci \
-            -p 8084:8084 \
-            -e SPRING_PROFILES_ACTIVE=ci \
-            -e SERVER_PORT=8084 \
-            -e DB_USER=postgres \
-            -e DB_PASSWORD="${{ steps.ci-secrets.outputs.delivery_db_password }}" \
-            -e SPRING_DATASOURCE_URL=jdbc:postgresql://delivery-db:5432/hermes_delivery_db \
-            -e JWT_SECRET="${{ steps.ci-secrets.outputs.jwt_secret }}" \
+            -e DB_PASSWORD=postgres \
+            -e SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/${{ matrix.db_name }} \
+            -e JWT_SECRET=vTjn89nwZ1y4e1j9w9EgvYynGxHYY9EcvY//zXVsqkU= \
             -e STRIPE_SECRET_KEY=sk_test_placeholder \
             -e GOOGLE_MAPS_API_KEY=placeholder \
-            -e NOMINATIM_USER_AGENT="${{ secrets.NOMINATIM_USER_AGENT }}" \
-            -e USER_SERVICE_BASE_URL=http://user-service:8081 \
-            -e PROFILE_SERVICE_BASE_URL=http://profile-service:8082 \
-            -e WALLET_SERVICE_BASE_URL=http://wallet-service:8083 \
-            "hermes-delivery-service:${{ github.sha }}"
+            -e NOMINATIM_USER_AGENT=hermes-ci-scan \
+            -e USER_SERVICE_BASE_URL=http://localhost:8081 \
+            -e PROFILE_SERVICE_BASE_URL=http://localhost:8082 \
+            -e WALLET_SERVICE_BASE_URL=http://localhost:8083 \
+            hermes-${{ matrix.service }}:${{ github.sha }}
 
-      # ------------------------------------------------------------
-      # Wait for all services
-      # ------------------------------------------------------------
-      - name: Wait for services
-        shell: bash
+      - name: Wait for ${{ matrix.service }} to be healthy
         run: |
-          declare -A services=(
-            [user-service]=8081
-            [profile-service]=8082
-            [wallet-service]=8083
-            [delivery-service]=8084
-          )
-
-          for service in "${!services[@]}"; do
-            port="${services[$service]}"
-
-            echo "Waiting for $service on port $port..."
-
-            for i in $(seq 1 60); do
-              if curl -sf "http://localhost:${port}/actuator/health" >/dev/null; then
-                echo "$service is healthy"
-                break
-              fi
-
-              if [ "$i" -eq 60 ]; then
-                echo "$service failed to become healthy"
-                docker logs "$service"
-                exit 1
-              fi
-
-              sleep 3
-            done
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:${{ matrix.port }}/actuator/health; then
+              echo "${{ matrix.service }} is up"
+              exit 0
+            fi
+            echo "Waiting for ${{ matrix.service }}..."
+            sleep 3
           done
+          echo "${{ matrix.service }} did not become healthy in time"
+          docker logs hermes-app
+          exit 1
 
-      # ------------------------------------------------------------
-      # Run ZAP only against the matrix target
-      # ------------------------------------------------------------
       - name: ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.15.0
         continue-on-error: true
+        uses: zaproxy/action-baseline@v0.12.0
         with:
-          target: "http://localhost:${{ matrix.port }}"
-          cmd_options: "-a"
+          target: 'http://localhost:${{ matrix.port }}'
+          cmd_options: '-a'
           fail_action: false
           allow_issue_writing: false
 
-      # ------------------------------------------------------------
-      # Preserve reports
-      # ------------------------------------------------------------
       - name: Upload ZAP reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -431,34 +242,8 @@ jobs:
             report_html.html
           if-no-files-found: warn
 
-      # ------------------------------------------------------------
-      # Diagnostics
-      # ------------------------------------------------------------
-      - name: Show service logs on failure
-        if: failure()
-        run: |
-          for service in user-service profile-service wallet-service delivery-service; do
-            echo "================================================"
-            echo "LOGS: $service"
-            echo "================================================"
-            docker logs "$service" || true
-          done
-
-      # ------------------------------------------------------------
-      # Cleanup
-      # ------------------------------------------------------------
       - name: Stop containers
         if: always()
         run: |
-          docker rm -f \
-            user-service \
-            profile-service \
-            wallet-service \
-            delivery-service \
-            user-db \
-            profile-db \
-            wallet-db \
-            delivery-db \
-            || true
-
-          docker network rm hermes-ci || true
+          docker stop hermes-app hermes-db || true
+          docker rm hermes-app hermes-db || true

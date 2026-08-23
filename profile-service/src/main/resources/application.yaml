@@ -8,8 +8,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    properties:
-      javax.persistence.schema-generation.database.action: none
   flyway:
     enabled: true
 
