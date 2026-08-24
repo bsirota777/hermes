@@ -1,4 +1,0 @@
-ALTER TABLE deliveries
-    ADD COLUMN delivery_fee NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-    ADD COLUMN driver_commission_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.8000,
-    ADD COLUMN version BIGINT NOT NULL DEFAULT 0;
