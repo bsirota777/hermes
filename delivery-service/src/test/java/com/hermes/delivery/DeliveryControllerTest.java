@@ -16,7 +16,6 @@ import com.hermes.delivery.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -36,12 +35,15 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import org.springframework.context.annotation.Import;
 
 // jwt.secret must decode (base64) to >=32 bytes for SecurityConfig's JwtValidator bean to
 // construct - value here is a throwaway test-only secret, never used to sign real tokens.
 @WebMvcTest(DeliveryController.class)
-@ImportAutoConfiguration(SecurityConfig.class)
+@Import(SecurityConfig.class)
 @TestPropertySource(properties = "jwt.secret=vTjn89nwZ1y4e1j9w9EgvYynGxHYY9EcvY//zXVsqkU=")
 class DeliveryControllerTest {
 
@@ -138,7 +140,9 @@ class DeliveryControllerTest {
         when(deliveryService.reserve(99L, 50L)).thenThrow(new DeliveryNotFoundException(99L));
 
         mockMvc.perform(post("/deliveries/99/assign").with(user("charlie@example.com")))
+                .andDo(print())
                 .andExpect(status().isNotFound());
+                //.andExpect(status().isNotFound());
     }
 
     @Test

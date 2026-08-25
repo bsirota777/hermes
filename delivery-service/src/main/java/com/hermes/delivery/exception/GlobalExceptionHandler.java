@@ -1,12 +1,10 @@
 package com.hermes.delivery.exception;
 
-import com.hermes.delivery.exception.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -31,6 +29,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DeliveryNotFoundException.class)
     public ResponseEntity<String> handleDeliveryNotFound(DeliveryNotFoundException ex) {
         log.warn("Delivery not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(DriverProfileNotFoundException.class)
+    public ResponseEntity<String> handleDeliveryNotFound(DriverProfileNotFoundException ex) {
+        log.warn("Driver Profile not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 
@@ -73,6 +77,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleInvalidQrCode(InvalidQrCodeException ex) {
         log.warn(ex.getMessage());
         return ResponseEntity.badRequest().body(ex.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<String> handleValidationErrors(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .reduce((a, b) -> a + "; " + b)
+                .orElse("Validation failed");
+
+        log.warn("Validation failed: {}", message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
     }
 
     // Catch All

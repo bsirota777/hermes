@@ -1,0 +1,16 @@
+spring:
+  jpa:
+    hibernate:
+       show_sql: true
+       format_sql: true
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:sk_test_dummy_key_for_tests}
+
+jwt:
+  secret: ${JWT_SECRET:vTjn89nwZ1y4e1j9w9EgvYynGxHYY9EcvY//zXVsqkU=}
+

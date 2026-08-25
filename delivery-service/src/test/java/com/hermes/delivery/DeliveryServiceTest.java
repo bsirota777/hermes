@@ -82,6 +82,19 @@ class DeliveryServiceTest {
         return HttpClientErrorException.NotFound.create(HttpStatus.NOT_FOUND, "Not Found", null, null, null);
     }
 
+    // BigDecimal arithmetic (e.g. fee.multiply(rate)) can produce a different scale than a
+    // hand-typed literal even when numerically equal (20.00 * 0.80 = 16.0000, not 16.00) -
+    // CreditWalletRequest is a record, so its generated equals() compares BigDecimal scale too,
+    // making direct equality brittle here. Compare by value instead.
+    private CreditWalletRequest creditRequestMatching(Long userId, BigDecimal amount,
+                                                      WalletTransactionType type, Long deliveryId) {
+        return argThat(req -> req != null
+                && req.userId().equals(userId)
+                && req.amount().compareTo(amount) == 0
+                && req.type() == type
+                && java.util.Objects.equals(req.deliveryId(), deliveryId));
+    }
+
     // ---------- createDeliveryRequest ----------
 
     @Test
@@ -243,8 +256,8 @@ class DeliveryServiceTest {
 
         deliveryService.updateStatus(1L, DeliveryStatus.CANCELLED);
 
-        verify(walletServiceClient).credit(new CreditWalletRequest(
-                100L, new BigDecimal("25.00"), WalletTransactionType.REFUND, 1L));
+        verify(walletServiceClient).credit(
+                creditRequestMatching(100L, new BigDecimal("25.00"), WalletTransactionType.REFUND, 1L));
     }
 
     @Test
@@ -262,8 +275,8 @@ class DeliveryServiceTest {
 
         deliveryService.updateStatus(1L, DeliveryStatus.CANCELLED);
 
-        verify(walletServiceClient).credit(new CreditWalletRequest(
-                100L, new BigDecimal("20.00"), WalletTransactionType.REFUND, 1L));
+        verify(walletServiceClient).credit(
+                creditRequestMatching(100L, new BigDecimal("20.00"), WalletTransactionType.REFUND, 1L));
     }
 
     // ---------- getSentDeliveries / getReceivedDeliveries ----------
@@ -452,8 +465,8 @@ class DeliveryServiceTest {
         Delivery result = deliveryService.completeDelivery(1L, "abc-123-token");
 
         assertThat(result.getStatus()).isEqualTo(DeliveryStatus.DELIVERED);
-        verify(walletServiceClient).credit(new CreditWalletRequest(
-                500L, new BigDecimal("16.00"), WalletTransactionType.EARNING, 1L));
+        verify(walletServiceClient).credit(
+                creditRequestMatching(500L, new BigDecimal("16.00"), WalletTransactionType.EARNING, 1L));
     }
 
     @Test

@@ -37,6 +37,7 @@ public class ParcelService {
 
         Parcel parcel = new Parcel();
         parcel.setDelivery(delivery);
+        parcel.setDescription(request.getDescription());
         parcel.setLengthCm(request.getLengthCm());
         parcel.setWidthCm(request.getWidthCm());
         parcel.setHeightCm(request.getHeightCm());
