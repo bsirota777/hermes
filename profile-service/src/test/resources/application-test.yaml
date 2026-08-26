@@ -1,0 +1,11 @@
+# Safe, fixed values for properties that in production come from required env vars with no
+# defaults (DB connection is handled separately by TestcontainersConfig's @ServiceConnection,
+# which overrides spring.datasource.* entirely - it doesn't need these).
+jwt:
+  secret: vTjn89nwZ1y4e1j9w9EgvYynGxHYY9EcvY//zXVsqkU=
+
+nominatim:
+  user-agent: HermesProfileServiceTests/1.0
+
+user-service:
+  base-url: http://localhost:8081
