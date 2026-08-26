@@ -1,9 +1,11 @@
 package com.hermes.user.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 public record AddressDto(
-        String streetNumber,
-        String streetName,
-        String suburb,
-        String state,
-        String postcode
+        @NotBlank String streetNumber,
+        @NotBlank String streetName,
+        @NotBlank String suburb,
+        @NotBlank String state,
+        @NotBlank String postcode
 ) {}
