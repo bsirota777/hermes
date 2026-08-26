@@ -17,7 +17,12 @@ subprojects {
 		// CVEs flagged by Snyk (SNYK-JAVA-CHQOSLOGBACK-17675439,
 		// SNYK-JAVA-COMFASTERXMLJACKSONCORE-17972608, SNYK-JAVA-ORGAPACHETOMCATEMBED-17732890,
 		// SNYK-JAVA-ORGAPACHETOMCATEMBED-17733746, SNYK-JAVA-ORGPOSTGRESQL-17874248,
-		// SNYK-JAVA-TOOLSJACKSONCORE-17972609). Revisit/remove once a Spring Boot
+		// SNYK-JAVA-TOOLSJACKSONCORE-17972609, SNYK-JAVA-IOMICROMETER-19233327,
+		// SNYK-JAVA-ORGSPRINGFRAMEWORKSECURITY-19267441, SNYK-JAVA-ORGSPRINGFRAMEWORKSECURITY-19267391,
+		// SNYK-JAVA-ORGSPRINGFRAMEWORK-19267072, SNYK-JAVA-ORGSPRINGFRAMEWORK-19267073,
+		// SNYK-JAVA-ORGSPRINGFRAMEWORK-19267075, SNYK-JAVA-ORGSPRINGFRAMEWORK-19267077,
+		// SNYK-JAVA-ORGSPRINGFRAMEWORK-19267078, SNYK-JAVA-ORGSPRINGFRAMEWORK-19267079,
+		// SNYK-JAVA-ORGSPRINGFRAMEWORK-19267098). Revisit/remove once a Spring Boot
 		// patch release pins these versions (or newer) itself.
 		dependencies {
 			dependency 'ch.qos.logback:logback-core:1.5.36'
@@ -25,6 +30,13 @@ subprojects {
 			dependency 'org.apache.tomcat.embed:tomcat-embed-core:11.0.23'
 			dependency 'org.postgresql:postgresql:42.7.12'
 			dependency 'tools.jackson.core:jackson-databind:3.1.5'
+			dependency 'io.micrometer:micrometer-core:1.17.1'
+			dependency 'org.springframework.security:spring-security-core:7.1.1'
+			dependency 'org.springframework.security:spring-security-crypto:7.1.1'
+			dependency 'org.springframework:spring-beans:7.0.9'
+			dependency 'org.springframework:spring-expression:7.0.9'
+			dependency 'org.springframework:spring-web:7.0.9'
+			dependency 'org.springframework:spring-webmvc:7.0.9'
 		}
 	}
 
