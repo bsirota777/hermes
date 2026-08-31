@@ -5,6 +5,7 @@ import com.hermes.common.profile.FindOrCreateProfileRequest;
 import com.hermes.common.profile.ProfileSummary;
 import com.hermes.profile.dto.DriverProfileDto;
 import com.hermes.profile.dto.DriverRegistrationRequest;
+import com.hermes.profile.dto.ProfileDto;
 import com.hermes.profile.dto.UpdateAddressRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,8 @@ public class ProfileController {
     public DriverProfileDto getDriver(@PathVariable Long userId) { return service.getDriver(userId); }
     @PatchMapping("/profiles/by-user/{userId}/address")
     public ResponseEntity<Void> updateAddress(@PathVariable Long userId, @Valid @RequestBody UpdateAddressRequest request) { service.updateAddress(userId,request); return ResponseEntity.noContent().build(); }
+    @GetMapping("/profiles/by-user/{userId}")
+    public ProfileDto getAddress(@PathVariable Long userId) { return service.getAddress(userId); }
 
     @GetMapping("/driver-profiles/{id}") public DriverProfileSummary driver(@PathVariable Long id) { return service.getDriverSummary(id); }
     @GetMapping("/driver-profiles/by-user/{userId}") public DriverProfileSummary driverByUser(@PathVariable Long userId) { return service.findDriverByUser(userId); }

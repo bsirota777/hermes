@@ -1,0 +1,68 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: user-service
+    url: http://user-service:8081
+    routes:
+      - name: user-service-route
+        paths:
+          - /users
+          - /login
+          - /admin/users
+        strip_path: false
+
+  - name: delivery-service
+    url: http://delivery-service:8084
+    routes:
+      - name: delivery-service-route
+        paths:
+          - /deliveries
+          - /admin/deliveries
+          - /parcels
+        strip_path: false
+
+  - name: profile-service
+    url: http://profile-service:8082
+    routes:
+      - name: profile-service-route
+        paths:
+          - /profiles
+        strip_path: false
+
+  - name: wallet-service
+    url: http://wallet-service:8083
+    routes:
+      - name: wallet-service-route
+        paths:
+          - /wallets
+        strip_path: false
+
+# --- Plugins ---
+# Global CORS so the Vite dev frontend (localhost:5173) can call through Kong
+# instead of hitting each service's own CORS config directly.
+plugins:
+  - name: cors
+    config:
+      origins:
+        - "http://localhost:5173"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Authorization
+        - Content-Type
+      credentials: true
+
+# NOTE on JWT:
+# Each service already verifies JWTs independently (common.security.JwtValidator +
+# JwtAuthFilter, or user-service's own JwtService). Kong's `jwt` plugin could be
+# added per-route later as a fast-fail edge check, but that requires consumers +
+# shared-secret/JWKS setup in Kong itself. Left out of this first pass so the
+# existing per-service auth keeps working unchanged - add it once this routing
+# layer is confirmed working end to end.

@@ -1,6 +1,7 @@
 package com.hermes.user;
 
 import com.hermes.user.dto.AccountDto;
+import com.hermes.user.dto.AddressResponse;
 import com.hermes.user.dto.ChangePasswordRequest;
 import com.hermes.user.dto.RegisterRequest;
 import com.hermes.user.dto.UpdateUserRequest;
@@ -103,6 +104,15 @@ public class UserController {
         User user = userService.loadUserByEmail(currentUser.getUsername());
         userService.updateAddress(user, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me/address")
+    public ResponseEntity<AddressResponse> getMyAddress(
+            @AuthenticationPrincipal UserDetails currentUser) {
+        User user = userService.loadUserByEmail(currentUser.getUsername());
+        return userService.getAddress(user)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
 }

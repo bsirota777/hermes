@@ -54,6 +54,15 @@ public class ProfileService {
         }
     }
 
+    // Mirrors updateAddress's lookup priority (sender, then recipient, then driver) since
+    // address/phone are kept in sync across whichever contact profiles exist for the user.
+    public ProfileDto getAddress(Long userId) {
+        return senderProfiles.findByUserId(userId).map(p -> new ProfileDto(p.getId(), userId, p.getAddress().toDto(), p.getPhoneNumber()))
+                .or(() -> recipientProfiles.findByUserId(userId).map(p -> new ProfileDto(p.getId(), userId, p.getAddress().toDto(), p.getPhoneNumber())))
+                .or(() -> driverProfiles.findByUserId(userId).map(p -> new ProfileDto(p.getId(), userId, p.getAddress().toDto(), p.getPhoneNumber())))
+                .orElseThrow(() -> new ProfileNotFoundException(userId));
+    }
+
     @Transactional
     public ProfileSummary findOrCreateSender(FindOrCreateProfileRequest request) {
         SenderProfile p = senderProfiles.findByUserId(request.userId()).orElseGet(() -> createSender(request));

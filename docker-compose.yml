@@ -1,0 +1,175 @@
+version: "3.9"
+
+# Local Kong + Hermes microservices stack.
+# Kong runs DB-less, loading routes/services declaratively from kong.yml
+# (avoids a 5th Postgres instance just for Kong's own config).
+#
+# ASSUMPTIONS you'll likely need to adjust to match your actual
+# application.yaml files (I don't have their exact contents on hand):
+#   - each service reads DB connection info from SPRING_DATASOURCE_* env vars
+#   - each service reads its JWT secret from JWT_SECRET (must be identical
+#     across all four, per your existing setup)
+#   - db names below are guesses (hermes_user, hermes_delivery, etc.) -
+#     swap for whatever your Flyway migrations actually target
+
+networks:
+  hermes-net:
+    driver: bridge
+
+services:
+  # ---------- Kong Gateway ----------
+  kong:
+    image: kong:3.7
+    container_name: kong
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_PROXY_LISTEN: "0.0.0.0:8000"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+    volumes:
+      - ./kong.yml:/kong/declarative/kong.yml:ro
+    ports:
+      - "8000:8000"   # proxy - this is what the frontend should hit
+      - "8001:8001"   # admin API (local only - don't expose this in prod)
+    networks:
+      - hermes-net
+    depends_on:
+      - user-service
+      - delivery-service
+      - profile-service
+      - wallet-service
+
+  # ---------- user-service ----------
+  user-db:
+    image: postgres:16-alpine
+    container_name: user-db
+    environment:
+      POSTGRES_DB: hermes_user_db
+      POSTGRES_USER: hermes_user
+      POSTGRES_PASSWORD: Password123
+    ports:
+      - "5433:5432"
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - hermes-net
+
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: user-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/hermes_user_db
+      SPRING_DATASOURCE_USERNAME: hermes_user
+      SPRING_DATASOURCE_PASSWORD: Password123
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me}
+    depends_on:
+      - user-db
+    networks:
+      - hermes-net
+
+  # ---------- delivery-service ----------
+  delivery-db:
+    image: postgres:16-alpine
+    container_name: delivery-db
+    environment:
+      POSTGRES_DB: hermes_delivery_db
+      POSTGRES_USER: hermes_delivery
+      POSTGRES_PASSWORD: Password123
+    ports:
+      - "5434:5432"
+    volumes:
+      - delivery-db-data:/var/lib/postgresql/data
+    networks:
+      - hermes-net
+
+  delivery-service:
+    build:
+      context: .
+      dockerfile: delivery-service/Dockerfile
+    container_name: delivery-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://delivery-db:5432/hermes_delivery_db
+      SPRING_DATASOURCE_USERNAME: hermes_delivery
+      SPRING_DATASOURCE_PASSWORD: Password123
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me}
+      USER_SERVICE_BASE_URL: http://user-service:8081
+      PROFILE_SERVICE_BASE_URL: http://profile-service:8082
+      WALLET_SERVICE_BASE_URL: http://wallet-service:8083
+      NOMINATIM_USER_AGENT: ${NOMINATIM_USER_AGENT:-hermes-local-dev}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+    depends_on:
+      - delivery-db
+      - user-service
+      - profile-service
+      - wallet-service
+    networks:
+      - hermes-net
+
+  # ---------- profile-service ----------
+  profile-db:
+    image: postgres:16-alpine
+    container_name: profile-db
+    environment:
+      POSTGRES_DB: hermes_profile_db
+      POSTGRES_USER: hermes_profile
+      POSTGRES_PASSWORD: Password123
+    ports:
+      - "5435:5432"
+    volumes:
+      - profile-db-data:/var/lib/postgresql/data
+    networks:
+      - hermes-net
+
+  profile-service:
+    build:
+      context: .
+      dockerfile: profile-service/Dockerfile
+    container_name: profile-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://profile-db:5432/hermes_profile_db
+      SPRING_DATASOURCE_USERNAME: hermes_profile
+      SPRING_DATASOURCE_PASSWORD: Password123
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me}
+    depends_on:
+      - profile-db
+    networks:
+      - hermes-net
+
+  # ---------- wallet-service ----------
+  wallet-db:
+    image: postgres:16-alpine
+    container_name: wallet-db
+    environment:
+      POSTGRES_DB: hermes_wallet_db
+      POSTGRES_USER: hermes_wallet
+      POSTGRES_PASSWORD: Password123
+    ports:
+      - "5436:5432"
+    volumes:
+      - wallet-db-data:/var/lib/postgresql/data
+    networks:
+      - hermes-net
+
+  wallet-service:
+    build:
+      context: .
+      dockerfile: wallet-service/Dockerfile
+    container_name: wallet-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://wallet-db:5432/hermes_wallet_db
+      SPRING_DATASOURCE_USERNAME: hermes_wallet
+      SPRING_DATASOURCE_PASSWORD: Password123
+      JWT_SECRET: ${JWT_SECRET:-local-dev-jwt-secret-change-me}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+    depends_on:
+      - wallet-db
+    networks:
+      - hermes-net
+
+volumes:
+  user-db-data:
+  delivery-db-data:
+  profile-db-data:
+  wallet-db-data:

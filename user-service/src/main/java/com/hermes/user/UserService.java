@@ -1,6 +1,7 @@
 package com.hermes.user;
 
 import com.hermes.user.dto.AccountDto;
+import com.hermes.user.dto.AddressResponse;
 import com.hermes.user.dto.ChangePasswordRequest;
 import com.hermes.user.dto.RegisterRequest;
 import com.hermes.user.dto.UpdateUserRequest;
@@ -119,6 +120,10 @@ public class UserService implements UserDetailsService {
 
     public void updateAddress(User user, UpdateAddressRequest request) {
         profileServiceClient.updateAddress(user.getId(), request);
+    }
+
+    public Optional<AddressResponse> getAddress(User user) {
+        return profileServiceClient.getAddress(user.getId());
     }
 
     public Optional<com.hermes.common.user.UserSummary> findUserByEmail(String email) {

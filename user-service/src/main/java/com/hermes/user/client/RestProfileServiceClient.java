@@ -1,11 +1,15 @@
 package com.hermes.user.client;
 
+import com.hermes.user.dto.AddressResponse;
 import com.hermes.user.dto.DriverProfileDto;
 import com.hermes.user.dto.UpdateAddressRequest;
 import com.hermes.user.dto.DriverRegistrationRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
+
+import java.util.Optional;
 
 @Component
 public class RestProfileServiceClient implements ProfileServiceClient {
@@ -48,5 +52,18 @@ public class RestProfileServiceClient implements ProfileServiceClient {
                 .body(request)
                 .retrieve()
                 .toBodilessEntity();
+    }
+
+    @Override
+    public Optional<AddressResponse> getAddress(Long userId) {
+        try {
+            AddressResponse response = restClient.get()
+                    .uri("/internal/profiles/by-user/{userId}", userId)
+                    .retrieve()
+                    .body(AddressResponse.class);
+            return Optional.ofNullable(response);
+        } catch (HttpClientErrorException.NotFound e) {
+            return Optional.empty();
+        }
     }
 }
