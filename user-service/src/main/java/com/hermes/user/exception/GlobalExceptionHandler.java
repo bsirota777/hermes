@@ -9,6 +9,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientResponseException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -44,6 +45,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<String> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(RestClientResponseException.class)
+    public ResponseEntity<String> handleDownstreamServiceError(RestClientResponseException ex) {
+        log.warn("Downstream service call failed: {} {}", ex.getStatusCode(), ex.getResponseBodyAsString());
+        return ResponseEntity.status(ex.getStatusCode()).body(ex.getResponseBodyAsString());
     }
 
     @ExceptionHandler(Exception.class)
