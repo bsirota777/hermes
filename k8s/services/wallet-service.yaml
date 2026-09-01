@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wallet-service
+  namespace: hermes
+  labels: { app: wallet-service }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: wallet-service }
+  template:
+    metadata:
+      labels: { app: wallet-service }
+    spec:
+      containers:
+        - name: wallet-service
+          # Replace with your actual GHCR image from docker-publish.yml
+          image: ghcr.io/bsirota777/hermes/wallet-service:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/wallet_service_db
+            - name: SPRING_DATASOURCE_USERNAME
+              value: hermes
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: hermes-secrets, key: POSTGRES_PASSWORD }
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: hermes-secrets, key: JWT_SECRET }
+            - name: SERVER_PORT
+              value: "8083"
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef: { name: hermes-secrets, key: STRIPE_SECRET_KEY }
+          readinessProbe:
+            tcpSocket: { port: 8083 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: 8083 }
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 150m, memory: 384Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wallet-service
+  namespace: hermes
+spec:
+  selector: { app: wallet-service }
+  ports:
+    - port: 8083
+      targetPort: 8083

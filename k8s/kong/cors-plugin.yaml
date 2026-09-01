@@ -1,0 +1,16 @@
+# Kong-native CORS plugin - once you have a real deploy origin, this can
+# replace the per-service Spring CorsConfigurationSource beans (currently
+# duplicated in user-service and delivery-service) with one shared config.
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: hermes-cors
+  namespace: hermes
+config:
+  origins:
+    - http://localhost:5173
+    # - https://your-real-frontend-domain.example
+  methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+  headers: [Authorization, Content-Type]
+  credentials: true
+plugin: cors

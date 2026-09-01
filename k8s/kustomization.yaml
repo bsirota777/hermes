@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: hermes
+resources:
+  - base/namespace.yaml
+  - base/secrets.yaml          # copy from base/secrets.example.yaml first
+  - postgres/postgres.yaml
+  - services/user-service.yaml
+  - services/profile-service.yaml
+  - services/wallet-service.yaml
+  - services/delivery-service.yaml
+  - kong/ingress.yaml
+  - kong/cors-plugin.yaml

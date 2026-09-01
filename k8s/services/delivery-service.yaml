@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delivery-service
+  namespace: hermes
+  labels: { app: delivery-service }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: delivery-service }
+  template:
+    metadata:
+      labels: { app: delivery-service }
+    spec:
+      containers:
+        - name: delivery-service
+          # Replace with your actual GHCR image from docker-publish.yml
+          image: ghcr.io/bsirota777/hermes/delivery-service:latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/delivery_service_db
+            - name: SPRING_DATASOURCE_USERNAME
+              value: hermes
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: hermes-secrets, key: POSTGRES_PASSWORD }
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: hermes-secrets, key: JWT_SECRET }
+            - name: SERVER_PORT
+              value: "8084"
+            - name: USER_SERVICE_BASE_URL
+              value: http://user-service:8081
+            - name: PROFILE_SERVICE_BASE_URL
+              value: http://profile-service:8082
+            - name: WALLET_SERVICE_BASE_URL
+              value: http://wallet-service:8083
+            - name: GOOGLE_MAPS_API_KEY
+              valueFrom:
+                secretKeyRef: { name: hermes-secrets, key: GOOGLE_MAPS_API_KEY }
+            - name: NOMINATIM_USER_AGENT
+              valueFrom:
+                secretKeyRef: { name: hermes-secrets, key: NOMINATIM_USER_AGENT }
+          readinessProbe:
+            tcpSocket: { port: 8084 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: 8084 }
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 150m, memory: 384Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: delivery-service
+  namespace: hermes
+spec:
+  selector: { app: delivery-service }
+  ports:
+    - port: 8084
+      targetPort: 8084

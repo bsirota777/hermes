@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: profile-service
+  namespace: hermes
+  labels: { app: profile-service }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: profile-service }
+  template:
+    metadata:
+      labels: { app: profile-service }
+    spec:
+      containers:
+        - name: profile-service
+          # Replace with your actual GHCR image from docker-publish.yml
+          image: ghcr.io/bsirota777/hermes/profile-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/profile_service_db
+            - name: SPRING_DATASOURCE_USERNAME
+              value: hermes
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: hermes-secrets, key: POSTGRES_PASSWORD }
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: hermes-secrets, key: JWT_SECRET }
+            - name: SERVER_PORT
+              value: "8082"
+
+          readinessProbe:
+            tcpSocket: { port: 8082 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: 8082 }
+            initialDelaySeconds: 40
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 150m, memory: 384Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: profile-service
+  namespace: hermes
+spec:
+  selector: { app: profile-service }
+  ports:
+    - port: 8082
+      targetPort: 8082
