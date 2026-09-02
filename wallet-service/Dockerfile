@@ -30,7 +30,7 @@ RUN ./gradlew :wallet-service:bootJar --no-daemon
 
 # --- Runtime stage ---
 FROM eclipse-temurin:21-jre-alpine
-RUN apk update && apk upgrade --no-cache p11-kit p11-kit-trust
+RUN apk update && apk upgrade --no-cache p11-kit p11-kit-trust expat
 WORKDIR /app
 COPY --from=build /app/wallet-service/build/libs/*.jar app.jar
 EXPOSE 8083
