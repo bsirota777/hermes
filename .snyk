@@ -1,0 +1,20 @@
+# .snyk
+version: v1.5.0
+ignore:
+  SNYK-ALPINE324-EXPAT-19437108:
+    - '*':
+        reason: >
+          Transitive via base image (eclipse-temurin:21-jre-alpine) through
+          font-dejavu/fontconfig. Not an application dependency - service is
+          headless, doesn't parse XML via expat or render fonts. Fix version
+          2.8.4-r0 is published upstream but not yet resolvable via apk
+          upgrade/add on this Alpine 3.24 base (dependency constraint from
+          another installed package, unconfirmed). Re-evaluate at next base
+          image refresh.
+        expires: 2026-12-01T00:00:00.000Z
+  SNYK-ALPINE324-EXPAT-19437114:
+    - '*':
+        reason: >
+          Same as SNYK-ALPINE324-EXPAT-19437108 - transitive via base image,
+          not exploitable in this service's usage pattern.
+        expires: 2026-12-01T00:00:00.000Z
