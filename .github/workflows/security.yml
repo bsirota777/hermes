@@ -136,7 +136,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           image: hermes-${{ matrix.service }}:${{ github.sha }}
-          args: --severity-threshold=high --file=${{ matrix.service }}/Dockerfile
+          args: --severity-threshold=high --file=${{ matrix.service }}/Dockerfile --policy-path=.snyk
 
   dast:
     name: DAST (OWASP ZAP baseline)
