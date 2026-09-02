@@ -65,7 +65,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high --all-sub-projects
+          args: --severity-threshold=high --all-sub-projects --policy-path=.snyk
 
   build-image:
     name: Build image for scanning
