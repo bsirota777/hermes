@@ -15,9 +15,10 @@ subprojects {
 		}
 		// Pinned ahead of Spring Boot's own BOM to close specific high-severity
 		// CVEs flagged by Snyk (SNYK-JAVA-CHQOSLOGBACK-17675439,
-		// SNYK-JAVA-COMFASTERXMLJACKSONCORE-17972608, SNYK-JAVA-ORGAPACHETOMCATEMBED-17732890,
-		// SNYK-JAVA-ORGAPACHETOMCATEMBED-17733746, SNYK-JAVA-ORGPOSTGRESQL-17874248,
-		// SNYK-JAVA-TOOLSJACKSONCORE-17972609, SNYK-JAVA-IOMICROMETER-19233327,
+		// SNYK-JAVA-COMFASTERXMLJACKSONCORE-17972608, SNYK-JAVA-COMFASTERXMLJACKSONCORE-19778370,
+		// SNYK-JAVA-ORGAPACHETOMCATEMBED-17732890, SNYK-JAVA-ORGAPACHETOMCATEMBED-17733746,
+		// SNYK-JAVA-ORGPOSTGRESQL-17874248, SNYK-JAVA-TOOLSJACKSONCORE-17972609,
+		// SNYK-JAVA-TOOLSJACKSONCORE-19778371, SNYK-JAVA-IOMICROMETER-19233327,
 		// SNYK-JAVA-ORGSPRINGFRAMEWORKSECURITY-19267441, SNYK-JAVA-ORGSPRINGFRAMEWORKSECURITY-19267391,
 		// SNYK-JAVA-ORGSPRINGFRAMEWORK-19267072, SNYK-JAVA-ORGSPRINGFRAMEWORK-19267073,
 		// SNYK-JAVA-ORGSPRINGFRAMEWORK-19267075, SNYK-JAVA-ORGSPRINGFRAMEWORK-19267077,
@@ -26,11 +27,12 @@ subprojects {
 		// patch release pins these versions (or newer) itself.
 		dependencies {
 			dependency 'ch.qos.logback:logback-core:1.5.36'
-			dependency 'com.fasterxml.jackson.core:jackson-databind:2.21.5'
+			dependency 'com.fasterxml.jackson.core:jackson-databind:2.21.6'
 			dependency 'org.apache.tomcat.embed:tomcat-embed-core:11.0.23'
 			dependency 'org.postgresql:postgresql:42.7.12'
-			dependency 'tools.jackson.core:jackson-databind:3.1.5'
+			dependency 'tools.jackson.core:jackson-databind:3.1.6'
 			dependency 'io.micrometer:micrometer-core:1.17.1'
+			dependency 'org.flywaydb:flyway-core:13.5.0'
 			dependency 'org.springframework.security:spring-security-core:7.1.1'
 			dependency 'org.springframework.security:spring-security-crypto:7.1.1'
 			dependency 'org.springframework:spring-beans:7.0.9'
